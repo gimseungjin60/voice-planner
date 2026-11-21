@@ -1,0 +1,30 @@
+{
+  "name": "voice-planner",
+  "version": "0.1.0",
+  "description": "말하면 정리되는 대학생 플래너 (Node.js + Express + EJS + MySQL)",
+  "main": "app.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js",
+    "db:init": "node scripts/db-init.js",
+    "check": "node scripts/check.js",
+    "erd": "node .claude/skills/erd-export/scripts/erd.js > docs/ERD.md",
+    "format": "prettier --write \"**/*.{js,css,json,md}\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^18.0.10",
+    "ejs": "^7.0.2",
+    "express": "^5.3.0",
+    "express-session": "^1.19.0",
+    "mysql2": "^3.24.6"
+  },
+  "devDependencies": {
+    "prettier": "^3.10.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
