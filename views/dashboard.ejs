@@ -1,0 +1,42 @@
+<%- include('partials/header') %>
+<% const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
+   const [y, m, d] = today.slice(0, 10).split("-").map(Number);
+   const dow = WEEK[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]; %>
+<div class="page-head">
+  <div>
+    <h1><%= m %>월 <%= d %>일 <%= dow %>요일</h1>
+    <p class="muted"><%= user.user_name %>님, 오늘도 화이팅!</p>
+  </div>
+  <button class="btn" id="briefing-btn">🔊 브리핑 듣기</button>
+</div>
+<p class="summary hidden" id="briefing-text"></p>
+
+<div class="grid">
+  <section class="card">
+    <h2>오늘 수업</h2>
+    <% if (!classes.length) { %><p class="muted">오늘은 수업이 없어요</p><% } %>
+    <ul class="list">
+      <% classes.forEach((c) => { %>
+        <li><span class="chip" style="background: <%= c.color %>"><%= c.name %></span>
+          <span><%= c.start_time.slice(0, 5) %>~<%= c.end_time.slice(0, 5) %></span>
+          <span class="muted"><%= c.room || '' %></span></li>
+      <% }) %>
+    </ul>
+  </section>
+  <section class="card"><h2>오늘 마감</h2><div class="stat" id="sum-today">-</div><p class="muted">지난 마감 <span id="sum-overdue">-</span>개</p></section>
+  <section class="card"><h2>이번 주 마감</h2><div class="stat" id="sum-week">-</div><p class="muted">7일 이내</p></section>
+  <section class="card"><h2>가장 가까운 D-day</h2><div id="sum-nearest" class="muted">불러오는 중…</div></section>
+</div>
+
+<div class="mic-wrap">
+  <a class="mic" href="/memo?start=1" aria-label="음성 메모 시작">🎙️</a>
+  <p class="muted">눌러서 말하면 할 일로 정리돼요</p>
+</div>
+
+<section class="card">
+  <h2>✨ 오늘 이것부터 <span class="muted" id="top-note"></span></h2>
+  <ol class="list" id="top-list"><li class="muted">AI가 고르는 중…</li></ol>
+</section>
+<script src="/js/voice.js" defer></script>
+<script src="/js/dashboard.js" defer></script>
+<%- include('partials/footer') %>

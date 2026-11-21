@@ -1,0 +1,26 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <h1>할 일 보드</h1>
+  <select id="subject-filter" aria-label="과목 필터" style="width: 200px">
+    <option value="">전체 과목</option>
+    <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %>
+  </select>
+</div>
+
+<form class="card form-row" id="task-form" style="margin-bottom: 20px">
+  <div style="flex: 3"><label for="t-title">할 일</label><input id="t-title" name="title" maxlength="200" required placeholder="예) 운영체제 3장 복습" /></div>
+  <div><label for="t-due">마감</label><input id="t-due" name="due_at" type="datetime-local" /></div>
+  <div><label for="t-priority">우선순위</label><select id="t-priority" name="priority"><option value="mid">보통</option><option value="high">높음</option><option value="low">낮음</option></select></div>
+  <div><label for="t-subject">과목</label><select id="t-subject" name="subject_id"><option value="">없음</option>
+    <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %></select></div>
+  <button class="btn" style="flex: 0">추가</button>
+</form>
+
+<div class="board">
+  <section class="column" data-status="todo"><h2>할 일 <span class="muted count"></span></h2><div class="cards"></div></section>
+  <section class="column" data-status="doing"><h2>진행 중 <span class="muted count"></span></h2><div class="cards"></div></section>
+  <section class="column" data-status="done"><h2>완료 <span class="muted count"></span></h2><div class="cards"></div></section>
+</div>
+<script id="tasks-data" type="application/json"><%- JSON.stringify(tasks).replace(/</g, '\\u003c') %></script>
+<script src="/js/tasks.js" defer></script>
+<%- include('partials/footer') %>

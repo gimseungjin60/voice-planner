@@ -1,0 +1,32 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <div>
+    <h1><%= memo.memo_type === 'lecture' ? '강의 녹음' : '음성 메모' %></h1>
+    <p class="muted"><%= memo.created_at.slice(0, 16) %> · <%= memo.subject_name || '과목 없음' %></p>
+  </div>
+  <div>
+    <a class="btn ghost" href="/memos">목록</a>
+    <button class="btn danger" id="delete-memo" data-id="<%= memo.memo_id %>">삭제</button>
+  </div>
+</div>
+<div class="stack">
+  <section class="card"><h2>AI 요약</h2><div class="summary"><%= memo.summary || 'AI 요약이 없어요 (분석 실패 또는 미실행)' %></div></section>
+  <section class="card"><h2>원문</h2><div class="summary"><%= memo.transcript %></div></section>
+  <section class="card">
+    <h2>이 메모에서 만든 할 일</h2>
+    <% if (!memo.tasks.length) { %><p class="muted">없어요</p><% } %>
+    <ul class="list">
+      <% memo.tasks.forEach((t) => { %>
+        <li><span><%= t.title %></span><span class="due" data-due="<%= t.due_at || '' %>"></span><span class="muted"><%= t.status %></span></li>
+      <% }) %>
+    </ul>
+  </section>
+</div>
+<script>
+  document.getElementById("delete-memo").addEventListener("click", async (e) => {
+    if (!confirm("메모를 삭제할까요? 이 메모에서 만든 할 일은 남아요.")) return;
+    const r = await api(`/api/memos/${e.target.dataset.id}`, { method: "DELETE" });
+    if (r.ok) location.href = "/memos";
+  });
+</script>
+<%- include('partials/footer') %>

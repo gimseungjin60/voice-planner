@@ -1,0 +1,31 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <h1>메모 목록 <span class="muted"><%= list.total %>개</span></h1>
+  <form method="get" action="/memos" style="width: 200px">
+    <select name="subject" aria-label="과목 필터" onchange="this.form.submit()">
+      <option value="">전체 과목</option>
+      <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>" <%= subject === s.subject_id ? 'selected' : '' %>><%= s.name %></option><% }) %>
+    </select>
+  </form>
+</div>
+<section class="card">
+  <% if (!list.items.length) { %><p class="muted">아직 메모가 없어요. <a href="/memo">음성 메모 남기기</a></p><% } %>
+  <ul class="list">
+    <% list.items.forEach((m) => { %>
+      <li>
+        <span class="chip" style="background: <%= m.subject_color || '' %>"><%= m.subject_name || '과목 없음' %></span>
+        <span class="chip" style="background: var(--text)"><%= m.memo_type === 'lecture' ? '강의' : '메모' %></span>
+        <a href="/memos/<%= m.memo_id %>" style="flex: 1; min-width: 200px"><%= (m.summary || m.transcript).split('\n')[0].slice(0, 80) %></a>
+        <span class="muted"><%= m.created_at.slice(0, 16) %></span>
+      </li>
+    <% }) %>
+  </ul>
+</section>
+<% if (list.pages > 1) { %>
+  <nav class="pager" aria-label="페이지">
+    <% for (let p = 1; p <= list.pages; p++) { %>
+      <a href="/memos?page=<%= p %><%= subject ? '&subject=' + subject : '' %>" class="<%= p === list.page ? 'active' : '' %>"><%= p %></a>
+    <% } %>
+  </nav>
+<% } %>
+<%- include('partials/footer') %>

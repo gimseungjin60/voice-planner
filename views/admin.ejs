@@ -1,0 +1,34 @@
+<%- include('partials/header') %>
+<div class="page-head"><h1>관리자</h1></div>
+<div class="grid" style="margin-bottom: 20px">
+  <section class="card"><h2>가입자</h2><div class="stat"><%= stats.users %></div></section>
+  <section class="card"><h2>음성 메모</h2><div class="stat"><%= stats.memos %></div></section>
+  <section class="card"><h2>할 일</h2><div class="stat"><%= stats.tasks %></div></section>
+  <section class="card"><h2>AI 호출</h2><div class="stat"><%= stats.ai_calls %></div>
+    <p class="muted">실패 <%= stats.ai_failed %>회 · 토큰 <%= stats.ai_tokens.toLocaleString() %></p></section>
+</div>
+<section class="card table-scroll">
+  <h2>회원 목록</h2>
+  <table class="data">
+    <thead><tr><th>이름</th><th>이메일</th><th>권한</th><th>메모</th><th>할 일</th><th>가입일</th><th></th></tr></thead>
+    <tbody>
+      <% users.forEach((u) => { %>
+        <tr>
+          <td><%= u.user_name %></td><td><%= u.email %></td><td><%= u.role %></td>
+          <td><%= u.memo_count %></td><td><%= u.task_count %></td><td><%= u.created_at.slice(0, 10) %></td>
+          <td><% if (u.user_id !== user.user_id) { %><button class="btn danger sm" data-delete="<%= u.user_id %>" data-name="<%= u.user_name %>">삭제</button><% } %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+<script>
+  document.querySelectorAll("[data-delete]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      if (!confirm(`${b.dataset.name} 회원과 모든 데이터를 삭제할까요?`)) return;
+      const r = await api(`/api/admin/users/${b.dataset.delete}`, { method: "DELETE" });
+      if (r.ok) b.closest("tr").remove();
+    }),
+  );
+</script>
+<%- include('partials/footer') %>

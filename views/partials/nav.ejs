@@ -1,0 +1,17 @@
+<%
+  const links = [["/", "대시보드"], ["/memo", "음성 메모"], ["/memos", "메모 목록"], ["/tasks", "할 일"], ["/timetable", "시간표"]];
+  if (user.role === "admin") links.push(["/admin", "관리자"]);
+  const isActive = (href) => (href === "/" ? path === "/" : path.startsWith(href) && !(href === "/memo" && path.startsWith("/memos")));
+%>
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/">🎙️ 보이스 플래너</a>
+    <div class="nav-links">
+      <% links.forEach(([href, label]) => { %>
+        <a href="<%= href %>" class="<%= isActive(href) ? 'active' : '' %>"><%= label %></a>
+      <% }) %>
+    </div>
+    <span class="muted"><%= user.user_name %>님</span>
+    <button class="btn ghost sm" id="logout-btn">로그아웃</button>
+  </div>
+</nav>

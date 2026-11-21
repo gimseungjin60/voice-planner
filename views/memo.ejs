@@ -1,0 +1,50 @@
+<%- include('partials/header') %>
+<div class="page-head"><h1>음성 메모</h1><a href="/memos">메모 목록 →</a></div>
+
+<div class="tabs" role="tablist">
+  <button class="active" data-type="memo">짧은 메모</button>
+  <button data-type="lecture">강의 녹음</button>
+</div>
+
+<section class="card stack">
+  <p class="muted" id="type-help">예) "데이터베이스 교수님이 다음 주 화요일까지 ERD 과제 내래"</p>
+  <div class="mic-wrap" id="mic-area" style="margin: 8px 0">
+    <button class="mic" id="mic-btn" aria-label="녹음 시작/정지">🎙️</button>
+    <p class="muted" id="mic-status">버튼을 누르고 말하세요</p>
+  </div>
+  <p class="muted hidden" id="no-stt">이 브라우저는 음성 인식을 지원하지 않아요. 아래에 직접 입력하세요. (Chrome 권장)</p>
+  <div>
+    <label for="transcript">인식된 내용 (수정 가능)</label>
+    <textarea id="transcript" class="transcript" placeholder="말한 내용이 여기에 실시간으로 찍혀요"></textarea>
+    <div class="interim" id="interim"></div>
+  </div>
+  <button class="btn" id="analyze-btn">✨ AI 분석</button>
+  <div class="error-msg" id="memo-error" role="alert"></div>
+</section>
+
+<section class="card stack hidden" id="result">
+  <h2>AI 요약</h2>
+  <div class="summary" id="summary"></div>
+  <div id="cand-wrap">
+    <h2>할 일 후보 <span class="muted">저장할 것만 체크하세요</span></h2>
+    <div class="stack" id="candidates"></div>
+    <button class="btn" id="confirm-btn" style="margin-top: 16px">할 일로 저장</button>
+  </div>
+  <a id="memo-link" href="/memos">저장된 메모 보기 →</a>
+</section>
+
+<template id="cand-tpl">
+  <div class="candidate">
+    <input type="checkbox" checked style="width: auto; margin-top: 12px" aria-label="저장할 할 일 선택" />
+    <input class="c-title" maxlength="200" aria-label="할 일 제목" />
+    <div class="form-row">
+      <div><label>마감</label><input class="c-due" type="datetime-local" /></div>
+      <div><label>우선순위</label><select class="c-priority"><option value="high">높음</option><option value="mid">보통</option><option value="low">낮음</option></select></div>
+      <div><label>과목</label><select class="c-subject"><option value="">없음</option>
+        <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %></select></div>
+    </div>
+  </div>
+</template>
+<script src="/js/voice.js" defer></script>
+<script src="/js/memo.js" defer></script>
+<%- include('partials/footer') %>

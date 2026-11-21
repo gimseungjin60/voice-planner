@@ -1,0 +1,24 @@
+<%- include('partials/header') %>
+<div class="card auth-box">
+  <h1 style="text-align: center">🎙️ 보이스 플래너</h1>
+  <p class="muted" style="text-align: center">말하면 할 일·마감·과목이 정리돼요</p>
+  <div class="tabs">
+    <a href="/login" class="<%= mode === 'login' ? 'active' : '' %>">로그인</a>
+    <a href="/signup" class="<%= mode === 'signup' ? 'active' : '' %>">회원가입</a>
+  </div>
+  <form id="auth-form" data-mode="<%= mode %>">
+    <% if (mode === 'signup') { %>
+      <div class="field"><label for="user_name">이름</label><input id="user_name" name="user_name" maxlength="50" required /></div>
+    <% } %>
+    <div class="field"><label for="email">이메일</label><input id="email" name="email" type="email" autocomplete="email" required /></div>
+    <div class="field">
+      <label for="password">비밀번호</label>
+      <input id="password" name="password" type="password" minlength="<%= mode === 'signup' ? 8 : 1 %>"
+        autocomplete="<%= mode === 'signup' ? 'new-password' : 'current-password' %>" required />
+    </div>
+    <div class="error-msg" id="auth-error" role="alert"></div>
+    <button class="btn" style="width: 100%"><%= title %></button>
+  </form>
+</div>
+<script src="/js/auth.js" defer></script>
+<%- include('partials/footer') %>
