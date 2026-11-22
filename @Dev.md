@@ -44,28 +44,28 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 | POST | /api/memos/:id/confirm | AI 후보 중 선택한 것만 tasks로 저장 | O |
 | GET | /api/tasks?status=&subject= | 할 일 목록 (필터) | O |
 | POST | /api/tasks | 할 일 직접 추가 | O |
-| PATCH | /api/tasks/:id | 상태·내용 수정 | O |
+| PATCH | /api/tasks/:id | 상태·내용 수정 (status가 done이 되면 completed_at=현재 시각, done에서 벗어나면 NULL) | O |
 | DELETE | /api/tasks/:id | 삭제 | O |
 | GET | /api/tasks/summary | 총정리: 오늘·이번 주·지난 마감 개수 + AI 우선순위 Top3 | O |
 | GET | /api/briefing/today | 오늘 브리핑 (없으면 생성 후 저장) | O |
 | GET | /api/admin/users | 회원 목록 | admin |
 | DELETE | /api/admin/users/:id | 회원 삭제 | admin |
 | GET | /api/admin/stats | 가입자 수, 메모 수, AI 호출 수 | admin |
-| GET | /auth/google | 구글 로그인 동의 화면으로 redirect (calendar.events, gmail.readonly) | O |
+| GET | /auth/google | 구글 로그인 동의 화면으로 redirect (calendar.events, gmail.readonly). 랜덤 state를 세션에 저장하고 callback에서 일치 확인(CSRF 방지) | O |
 | GET | /auth/google/callback | 토큰 받아 integrations 저장 → 연동 설정 화면으로 | O |
 | GET | /api/integrations | 내 연동 상태 (provider, 연결 시각, 마지막 동기화, 만료 여부). 토큰은 응답에 넣지 않음 | O |
 | PUT | /api/integrations/notion | 노션 토큰·데이터베이스 ID 저장 | O |
 | DELETE | /api/integrations/:provider | 연동 해제 (해당 provider 데이터는 유지) | O |
-| POST | /api/sync/calendar | 구글 캘린더 오늘~14일 일정을 events에 upsert | O |
+| POST | /api/sync/calendar | 구글 캘린더 오늘~14일 일정을 events에 upsert. 같은 범위에서 구글 응답에 없는 provider=google 일정은 삭제 | O |
 | POST | /api/sync/gmail | 최근 7일 메일 중 새 메일만 AI 분석 → 과제·마감이 있으면 inbox_items 추가 | O |
 | GET | /api/inbox?status=pending | 받은 편지함 후보 목록 | O |
 | POST | /api/inbox/:id/accept | 후보 → tasks 저장(source='gmail'), status=accepted | O |
 | POST | /api/inbox/:id/ignore | 후보 무시 | O |
 | GET | /api/events?from=&to= | 내 일정 목록 | O |
-| POST | /api/events | 일정 직접 추가 (구글 연결 시 구글 캘린더에도 생성) | O |
+| POST | /api/events | 일정 직접 추가 (구글 연결 시 구글 캘린더에도 생성하고 provider=google + 구글 이벤트 ID로 저장 → 다음 동기화 때 중복 없음) | O |
 | DELETE | /api/events/:id | 일정 삭제 (구글 일정이면 구글에서도 삭제) | O |
 | GET | /api/timeline?from=&to= | 통합 타임라인: 수업(schedules)+일정(events)+할 일 마감(tasks)을 시간순 하나의 배열로 | O |
-| POST | /api/assistant | 음성 비서. body { text } → Claude tool use로 도구 실행 → { reply(TTS용 문장), actions[] } | O |
+| POST | /api/assistant | 음성 비서. body { text } → Claude tool use로 도구 실행 → { reply(TTS용 문장), actions[], pending } | O |
 | POST | /api/notion/export | 이번 주(또는 선택한) 할 일을 노션 DB에 행으로 추가, tasks.external_id 기록 | O |
 
 # 화면 (EJS)
@@ -103,6 +103,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
    - context: 오늘 날짜·요일, 14일 달력, 내 과목 목록
    - 도구: add_task, list_tasks, complete_task, add_event, list_schedule(수업+일정, 날짜 범위), find_free_slot(날짜, 길이)
    - 일정이 수업·기존 일정과 겹치면 추가하지 않고 빈 시간을 제안 (사용자가 "좋아"라고 다시 말하면 추가)
+   - 제안한 일정은 세션(req.session.pendingAction)에 보관하고 응답에 pending으로 알려준다. 다음 요청이 수락(좋아·응·그래)이면 그대로 실행, 다른 말이면 버린다
    - 출력: { reply, actions: [{ tool, input, result }] }, 도구 호출마다 ai_logs(feature='assistant', tool_name) 기록
 6. extractFromMail(subject, sender, snippet, subjects, today) → { is_task, title, due_at, subject } (과제·시험·마감이 없으면 is_task=false)
 - JSON이 필요한 함수(1·2·3·6)는 Claude 구조화 출력(JSON 스키마 지정)을 사용
@@ -120,6 +121,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 9. 동기화는 수동(버튼) + 대시보드 진입 시 마지막 동기화가 10분 지났으면 자동 1회
 10. 구글 토큰 만료·취소 시 앱은 계속 동작하고 연동 설정에 "다시 연결" 표시 (DB에 있는 일정은 그대로 보여줌)
 11. Gmail은 제목·보낸 사람·snippet만 AI에 보내고 본문은 저장하지 않는다. 이미 본 메시지 ID는 다시 분석하지 않음
+12. 외부 토큰(구글·노션)은 integrations에만 저장하고 API 응답·로그·화면에 내보내지 않는다 (과제 범위에서 DB 암호화는 생략, DB 계정 접근 제한으로 대체)
 
 # 비기능 요구사항
 - HTTPS 필수 (마이크 권한 + 구글 OAuth redirect). EC2에 무료 도메인(DuckDNS 등) + Let's Encrypt
