@@ -129,6 +129,9 @@ router.patch("/:id", async (req, res, next) => {
     if (b.status !== undefined) {
       if (!STATUS.includes(b.status)) return res.status(400).json({ ok: false, error: "상태 값이 올바르지 않아요" });
       sets.push("status = ?") && params.push(b.status);
+      // 완료 시각 기록 (완료율 통계용). 이미 done이면 처음 완료한 시각 유지
+      sets.push(b.status === "done" ? "completed_at = COALESCE(completed_at, ?)" : "completed_at = NULL");
+      if (b.status === "done") params.push(pool.kst());
     }
     if (b.priority !== undefined) {
       if (!PRIORITY.includes(b.priority)) return res.status(400).json({ ok: false, error: "우선순위 값이 올바르지 않아요" });
