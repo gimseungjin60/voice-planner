@@ -1,6 +1,6 @@
 # 보이스 플래너 (Voice Planner)
 
-말하면 AI가 할 일·마감·과목을 정리해주는 대학생 플래너. 기말 과제(AI 바이브 코딩).
+말하면 AI가 할 일·마감·과목을 정리하고, 구글 캘린더·Gmail·노션을 한 화면에 모아주는 대학생 플래너. 기말 과제(AI 바이브 코딩).
 명세는 `@Dev.md`, DB는 `schema.sql`이 단일 진실(source of truth). 둘이 다르면 코드를 고치지 말고 먼저 물어볼 것.
 
 ## 필수 스택 (바꾸지 말 것)
@@ -10,6 +10,7 @@
 - 프론트: EJS + 순수 CSS + 바닐라 JS(`fetch`). React·Vue·Tailwind 빌드 도구 추가 금지
 - 음성: 브라우저 Web Speech API(STT `SpeechRecognition`, TTS `speechSynthesis`), 한국어 `ko-KR`
 - AI: Anthropic SDK(`@anthropic-ai/sdk`), 서버에서만 호출. 키는 `.env`의 `ANTHROPIC_API_KEY`
+- 외부 연동: 구글(`googleapis`, OAuth 2.0: calendar.events + gmail.readonly), 노션(`@notionhq/client`, internal integration 토큰). 서버에서만 호출, 키는 `.env`
 
 ## 폴더 구조 (교수님 todosapp 구조를 확장)
 ```
@@ -23,7 +24,17 @@ routes/
   api/subjects.js      # /api/subjects, 시간표 포함
   api/briefing.js      # /api/briefing/today
   api/admin.js         # /api/admin (role=admin)
+  oauth.js             # /auth/google, /auth/google/callback
+  api/integrations.js  # /api/integrations 연동 상태·노션 설정
+  api/sync.js          # /api/sync/calendar, /api/sync/gmail
+  api/inbox.js         # /api/inbox 메일 후보 수락·무시
+  api/events.js        # /api/events 일정
+  api/timeline.js      # /api/timeline 수업+일정+마감 통합
+  api/assistant.js     # /api/assistant 음성 비서
+  api/notion.js        # /api/notion/export
 services/ai.js         # Claude 호출은 전부 여기. 라우터에서 SDK 직접 호출 금지
+services/google.js     # 구글 캘린더·Gmail 호출은 전부 여기 (토큰 갱신 포함)
+services/notion.js     # 노션 호출은 전부 여기
 middleware/auth.js     # requireLogin, requireAdmin
 views/                 # *.ejs, views/partials/{header,footer,nav}.ejs
 public/css, public/js  # public/js/voice.js = STT/TTS 래퍼
@@ -36,7 +47,10 @@ public/css, public/js  # public/js/voice.js = STT/TTS 래퍼
 - API 응답 형식 통일: 성공 `{ ok: true, data }`, 실패 `{ ok: false, error: "메시지" }` + 적절한 status
 - 화면은 페이지 GET으로 EJS 렌더, 데이터 변경은 `fetch('/api/...')` → JSON
 - 주석과 UI 문구는 한국어. 변수·함수명은 영어 camelCase, DB 컬럼은 snake_case
-- AI 응답은 JSON 스키마로 받고 파싱 실패 시 원문만 저장(앱이 죽으면 안 됨). 호출마다 `ai_logs`에 기록
+- AI 응답은 JSON 스키마로 받고(구조화 출력) 파싱 실패 시 원문만 저장(앱이 죽으면 안 됨). 호출마다 `ai_logs`에 기록
+- 외부 API 실패(토큰 만료 등)도 앱을 멈추지 않는다. DB에 있는 데이터로 화면을 그리고 "다시 연결"을 안내
+- 외부 데이터는 MySQL에 저장한 뒤 화면은 DB에서 읽는다 (화면 렌더 중 외부 API 직접 호출 금지)
+- 토큰은 API 응답·로그·화면에 절대 내보내지 않는다
 
 ## 명령어
 - `npm run dev` 개발 서버(node --watch), `npm start` 운영
@@ -57,4 +71,5 @@ public/css, public/js  # public/js/voice.js = STT/TTS 래퍼
 - 명세에 없는 기능을 임의로 추가 (먼저 제안할 것)
 
 ## 2차 목표 (지금은 손대지 말 것)
-Spring Boot(Spring AI) MCP 서버가 같은 MySQL DB를 읽고 구글 캘린더·노션을 연동. 그래서 DB 스키마는 Node 전용 꼼수 없이 표준 SQL로 유지.
+Spring Boot(Spring AI) MCP 서버가 같은 MySQL DB를 읽어 Claude Desktop에서 플래너를 조작. 노션 양방향 동기화·다국어 강의 노트도 2차 후보. 그래서 DB 스키마는 Node 전용 꼼수 없이 표준 SQL로 유지.
+(구글 캘린더·Gmail·노션 내보내기 연동은 1차 범위로 옮김. 2026-11-22 결정)
