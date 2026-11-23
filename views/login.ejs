@@ -1,24 +1,43 @@
 <%- include('partials/header') %>
-<div class="card auth-box">
-  <h1 style="text-align: center">🎙️ 보이스 플래너</h1>
-  <p class="muted" style="text-align: center">말하면 할 일·마감·과목이 정리돼요</p>
-  <div class="tabs">
-    <a href="/login" class="<%= mode === 'login' ? 'active' : '' %>">로그인</a>
-    <a href="/signup" class="<%= mode === 'signup' ? 'active' : '' %>">회원가입</a>
-  </div>
-  <form id="auth-form" data-mode="<%= mode %>">
-    <% if (mode === 'signup') { %>
-      <div class="field"><label for="user_name">이름</label><input id="user_name" name="user_name" maxlength="50" required /></div>
-    <% } %>
-    <div class="field"><label for="email">이메일</label><input id="email" name="email" type="email" autocomplete="email" required /></div>
-    <div class="field">
-      <label for="password">비밀번호</label>
-      <input id="password" name="password" type="password" minlength="<%= mode === 'signup' ? 8 : 1 %>"
-        autocomplete="<%= mode === 'signup' ? 'new-password' : 'current-password' %>" required />
+<div class="auth">
+  <section class="auth-hero">
+    <a class="brand" href="/login"><span class="brand-mark"><svg class="i"><use href="#i-mic"/></svg></span>보이스 플래너</a>
+    <div>
+      <h1>말하면,<br />정리됩니다.</h1>
+      <p class="lead">흩어진 수업·과제·일정을 한 화면에.<br />떠오른 할 일은 그냥 말로 남기세요.</p>
+      <ul class="features">
+        <li><span class="feat-icon"><svg class="i"><use href="#i-mic"/></svg></span><div><b>말로 남기면 AI가 정리</b><span>"다음 주 화요일까지"도 정확한 날짜로</span></div></li>
+        <li><span class="feat-icon"><svg class="i"><use href="#i-calendar"/></svg></span><div><b>시간표·구글 캘린더·메일 과제를 한 줄로</b><span>오늘 무엇이 있는지 한눈에</span></div></li>
+        <li><span class="feat-icon"><svg class="i"><use href="#i-speaker"/></svg></span><div><b>아침 브리핑을 읽어드려요</b><span>수업과 마감을 30초로</span></div></li>
+      </ul>
     </div>
-    <div class="error-msg" id="auth-error" role="alert"></div>
-    <button class="btn" style="width: 100%"><%= title %></button>
-  </form>
+    <p class="fine" style="color: var(--on-dark-muted)">AI 바이브 코딩 기말 프로젝트</p>
+  </section>
+
+  <main class="auth-main">
+    <div class="auth-box">
+      <h2><%= mode === 'signup' ? '계정 만들기' : '다시 오셨네요' %></h2>
+      <p><%= mode === 'signup' ? '30초면 시작할 수 있어요' : '로그인하고 오늘을 확인하세요' %></p>
+      <nav class="seg full" aria-label="로그인 또는 회원가입">
+        <a href="/login" class="<%= mode === 'login' ? 'active' : '' %>">로그인</a>
+        <a href="/signup" class="<%= mode === 'signup' ? 'active' : '' %>">회원가입</a>
+      </nav>
+      <form id="auth-form" data-mode="<%= mode %>" novalidate>
+        <% if (mode === 'signup') { %>
+          <div class="field"><label for="user_name">이름</label><input id="user_name" name="user_name" maxlength="50" autocomplete="name" required placeholder="김학생" /></div>
+        <% } %>
+        <div class="field"><label for="email">이메일</label><input id="email" name="email" type="email" autocomplete="email" required placeholder="you@school.ac.kr" /></div>
+        <div class="field">
+          <label for="password">비밀번호</label>
+          <input id="password" name="password" type="password" required
+            autocomplete="<%= mode === 'signup' ? 'new-password' : 'current-password' %>" placeholder="<%= mode === 'signup' ? '8자 이상' : '' %>" />
+        </div>
+        <div class="error-msg" id="auth-error" role="alert"></div>
+        <button class="btn lg block" style="margin-top: 20px"><%= mode === 'signup' ? '가입하고 시작하기' : '로그인' %></button>
+      </form>
+      <% if (mode === 'login') { %><p class="fine demo">체험 계정 student@vp.com / test1234</p><% } %>
+    </div>
+  </main>
 </div>
 <script src="/js/auth.js" defer></script>
 <%- include('partials/footer') %>

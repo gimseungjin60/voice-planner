@@ -1,0 +1,22 @@
+<%# 음성 비서: 모든 화면 오른쪽 아래 플로팅. 동작은 public/js/assistant.js %>
+<button class="fab" id="assist-fab" aria-label="음성 비서 열기" aria-expanded="false">
+  <svg class="i"><use href="#i-sparkles"/></svg><span>비서에게 말하기</span>
+</button>
+<section class="assist hidden" id="assist" role="dialog" aria-label="음성 비서">
+  <div class="assist-head">
+    <b><svg class="i"><use href="#i-sparkles"/></svg>음성 비서</b>
+    <button class="btn plain icon sm" id="assist-speak-stop" title="읽기 멈춤" aria-label="읽기 멈춤" hidden><svg class="i sm"><use href="#i-speaker"/></svg></button>
+    <button class="btn gray icon sm" id="assist-close" aria-label="닫기"><svg class="i sm"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="assist-suggest" id="assist-suggest">
+    <button data-say="내일 오후 3시에 캡스톤 조 회의 잡아줘">회의 잡아줘</button>
+    <button data-say="이번 주 마감 알려줘">이번 주 마감</button>
+    <button data-say="오늘 수업 뭐 있어?">오늘 수업</button>
+  </div>
+  <div class="assist-log" id="assist-log" aria-live="polite"></div>
+  <form class="assist-bar" id="assist-form">
+    <input id="assist-input" placeholder="말하거나 입력하세요" autocomplete="off" aria-label="비서에게 할 말" />
+    <button type="button" class="assist-mic" id="assist-mic" aria-label="말하기"><svg class="i"><use href="#i-mic"/></svg></button>
+  </form>
+</section>
+<script src="/js/assistant.js" defer></script>

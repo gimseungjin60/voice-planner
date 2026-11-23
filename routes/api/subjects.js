@@ -17,6 +17,26 @@ async function listSubjects(userId) {
   return subjects.map((s) => ({ ...s, schedules: schedules.filter((x) => x.subject_id === s.subject_id) }));
 }
 
+// 과목 모아보기: 과목 + 이 과목의 할 일·음성 메모·메일 과제 (없으면 null)
+async function subjectOverview(userId, subjectId) {
+  const subject = (await listSubjects(userId)).find((s) => s.subject_id === Number(subjectId));
+  if (!subject) return null;
+  const args = [userId, subject.subject_id];
+  const [tasks] = await pool.query(
+    "SELECT * FROM tasks WHERE user_id = ? AND subject_id = ? ORDER BY status = 'done', due_at IS NULL, due_at",
+    args,
+  );
+  const [memos] = await pool.query(
+    "SELECT memo_id, memo_type, summary, transcript, created_at FROM voice_memos WHERE user_id = ? AND subject_id = ? ORDER BY created_at DESC LIMIT 20",
+    args,
+  );
+  const [mails] = await pool.query(
+    "SELECT item_id, sender, subject, received_at, ai_title, ai_due_at, status FROM inbox_items WHERE user_id = ? AND subject_id = ? ORDER BY received_at DESC LIMIT 20",
+    args,
+  );
+  return { ...subject, tasks, memos, mails };
+}
+
 // 입력 검증. 문제가 있으면 에러 메시지 문자열, 없으면 정리된 값
 function parseBody(b = {}) {
   const name = String(b.name || "").trim();
@@ -118,4 +138,5 @@ router.delete("/:id", async (req, res, next) => {
 });
 
 router.listSubjects = listSubjects;
+router.subjectOverview = subjectOverview;
 module.exports = router;

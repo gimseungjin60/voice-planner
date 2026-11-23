@@ -49,5 +49,28 @@ router.get("/today", async (req, res, next) => {
   }
 });
 
+// 오늘 브리핑 음성(mp3). 브리핑이 아직 없으면 404 → 화면은 브라우저 TTS로 대체
+// ponytail: 메모리 캐시라 서버 재시작 시 다시 생성 (하루 1~2센트). 사용자 많아지면 파일로 저장
+const audioCache = new Map();
+router.get("/today/audio", async (req, res, next) => {
+  try {
+    const userId = req.session.user.user_id;
+    const today = pool.kst().slice(0, 10);
+    const [[saved]] = await pool.query("SELECT content FROM briefings WHERE user_id = ? AND brief_date = ?", [userId, today]);
+    if (!saved) return res.status(404).json({ ok: false, error: "오늘 브리핑이 아직 없어요" });
+    const key = `${userId}:${today}`;
+    let mp3 = audioCache.get(key);
+    if (!mp3) {
+      mp3 = await ai.speak({ userId, text: saved.content });
+      if (!mp3) return res.status(502).json({ ok: false, error: "음성을 만들지 못했어요" });
+      for (const k of audioCache.keys()) if (!k.endsWith(today)) audioCache.delete(k); // 지난 날짜 정리
+      audioCache.set(key, mp3);
+    }
+    res.type("audio/mpeg").send(mp3);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.todayClasses = todayClasses;
 module.exports = router;

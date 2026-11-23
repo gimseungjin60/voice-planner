@@ -100,7 +100,7 @@ CREATE TABLE ai_logs (
     log_id      INT AUTO_INCREMENT PRIMARY KEY,
     user_id     INT NOT NULL,
     memo_id     INT NULL,
-    feature     ENUM('extract','summary','briefing','chat','sync','prioritize','assistant','mail') NOT NULL,
+    feature     ENUM('extract','summary','briefing','chat','sync','prioritize','assistant','mail','transcribe','tts') NOT NULL,
     tool_name   VARCHAR(50) NULL,                     -- 음성 비서가 실행한 도구. 예: add_event
     input_text  TEXT,
     output_text TEXT,

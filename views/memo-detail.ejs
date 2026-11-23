@@ -1,31 +1,61 @@
 <%- include('partials/header') %>
-<div class="page-head">
-  <div>
-    <h1><%= memo.memo_type === 'lecture' ? '강의 녹음' : '음성 메모' %></h1>
-    <p class="muted"><%= memo.created_at.slice(0, 16) %> · <%= memo.subject_name || '과목 없음' %></p>
+<% const lecture = memo.memo_type === 'lecture';
+   const STATUS = { todo: ['할 일', ''], doing: ['진행 중', 'blue'], done: ['완료', 'green'] }; %>
+<header class="subnav">
+  <div class="subnav-inner">
+    <a class="btn plain" href="/memos" style="margin-left: -8px"><svg class="i"><use href="#i-chevron-left"/></svg>메모</a>
+    <span style="margin-right: auto"></span>
+    <button class="btn plain danger" id="delete-memo" data-id="<%= memo.memo_id %>"><svg class="i"><use href="#i-trash"/></svg>삭제</button>
   </div>
-  <div>
-    <a class="btn ghost" href="/memos">목록</a>
-    <button class="btn danger" id="delete-memo" data-id="<%= memo.memo_id %>">삭제</button>
+</header>
+
+<main class="container narrow">
+  <div class="detail-head">
+    <span class="icon-tile <%= lecture ? 'ink' : '' %>"><svg class="i"><use href="#i-<%= lecture ? 'wave' : 'note' %>"/></svg></span>
+    <div>
+      <h2><%= lecture ? '강의 녹음' : '음성 메모' %></h2>
+      <div class="row-sub">
+        <% if (memo.subject_name) { %><span class="chip" style="--c: <%= memo.subject_color %>"><%= memo.subject_name %></span><% } else { %><span class="chip none">과목 없음</span><% } %>
+        <span class="num"><%= memo.created_at.slice(0, 16).replace(' ', ' · ') %></span>
+        <% if (memo.duration_sec) { %><span><%= Math.floor(memo.duration_sec / 60) ? Math.floor(memo.duration_sec / 60) + '분 ' : '' %><%= memo.duration_sec % 60 %>초</span><% } %>
+      </div>
+    </div>
   </div>
-</div>
-<div class="stack">
-  <section class="card"><h2>AI 요약</h2><div class="summary"><%= memo.summary || 'AI 요약이 없어요 (분석 실패 또는 미실행)' %></div></section>
-  <section class="card"><h2>원문</h2><div class="summary"><%= memo.transcript %></div></section>
-  <section class="card">
-    <h2>이 메모에서 만든 할 일</h2>
-    <% if (!memo.tasks.length) { %><p class="muted">없어요</p><% } %>
-    <ul class="list">
-      <% memo.tasks.forEach((t) => { %>
-        <li><span><%= t.title %></span><span class="due" data-due="<%= t.due_at || '' %>"></span><span class="muted"><%= t.status %></span></li>
-      <% }) %>
-    </ul>
-  </section>
-</div>
+
+  <div class="stack">
+    <section>
+      <p class="section-label">AI 요약</p>
+      <div class="summary <%= memo.summary ? 'ai' : 'warn' %>"><%= memo.summary || 'AI 요약이 없어요 (분석 실패 또는 미실행). 원문은 아래에 그대로 남아 있어요.' %></div>
+    </section>
+
+    <section>
+      <p class="section-label">이 메모에서 만든 할 일</p>
+      <div class="group">
+        <% if (!memo.tasks.length) { %>
+          <div class="row"><span class="muted">아직 없어요</span></div>
+        <% } %>
+        <% memo.tasks.forEach((t) => { %>
+          <div class="row">
+            <span class="check <%= t.status === 'done' ? 'on' : '' %>" aria-hidden="true"></span>
+            <div class="row-main"><div class="row-title"><%= t.title %></div></div>
+            <span class="due" data-due="<%= t.due_at || '' %>" <%= t.status === 'done' ? 'data-done=1' : '' %>></span>
+            <span class="badge <%= STATUS[t.status][1] %>"><%= STATUS[t.status][0] %></span>
+          </div>
+        <% }) %>
+      </div>
+    </section>
+
+    <section>
+      <p class="section-label">원문</p>
+      <div class="card"><div class="transcript-text"><%= memo.transcript %></div></div>
+    </section>
+  </div>
+</main>
 <script>
   document.getElementById("delete-memo").addEventListener("click", async (e) => {
-    if (!confirm("메모를 삭제할까요? 이 메모에서 만든 할 일은 남아요.")) return;
-    const r = await api(`/api/memos/${e.target.dataset.id}`, { method: "DELETE" });
+    const id = e.currentTarget.dataset.id;
+    if (!(await ask("메모를 삭제할까요?\n이 메모에서 만든 할 일은 남아요.", "삭제"))) return;
+    const r = await api(`/api/memos/${id}`, { method: "DELETE" });
     if (r.ok) location.href = "/memos";
   });
 </script>

@@ -81,6 +81,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
    - 정지 → "AI 분석" → 요약 + 할 일 후보 카드 (과목·마감 자동 채움)
    - 후보 체크 후 "할 일로 저장"
    - 탭 전환: 짧은 메모 / 강의 녹음(긴 텍스트 요약)
+   - 강의 녹음은 실시간 자막 대신 녹음 파일을 10분 단위로 서버에 올려 OpenAI gpt-4o-mini-transcribe로 받아쓴다 (크롬 STT는 긴 녹음에서 끊김). 짧은 메모·음성 비서는 Web Speech 그대로
 4. 메모 목록 / 상세 (페이지네이션, 과목 필터)
 5. 할 일 보드: 할 일 · 진행 중 · 완료 3열 카드, 과목 색상 표시, 마감 임박 빨간 표시
 6. 시간표: 주간 표, 과목 추가/수정
@@ -106,6 +107,8 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
    - 제안한 일정은 세션(req.session.pendingAction)에 보관하고 응답에 pending으로 알려준다. 다음 요청이 수락(좋아·응·그래)이면 그대로 실행, 다른 말이면 버린다
    - 출력: { reply, actions: [{ tool, input, result }] }, 도구 호출마다 ai_logs(feature='assistant', tool_name) 기록
 6. extractFromMail(subject, sender, snippet, subjects, today) → { is_task, title, due_at, subject } (과제·시험·마감이 없으면 is_task=false)
+7. transcribe(audio) → 강의 녹음 받아쓰기 (OpenAI gpt-4o-mini-transcribe, 분당 $0.003). ai_logs(feature='transcribe') 기록, 실패하면 null
+8. speak(text) → 브리핑 음성 mp3 (OpenAI gpt-4o-mini-tts, 목소리 marin). 하루 1번 만들어 메모리에 캐시, 실패하면 브라우저 TTS로 대체. ai_logs(feature='tts')
 - JSON이 필요한 함수(1·2·3·6)는 Claude 구조화 출력(JSON 스키마 지정)을 사용
 - 실패하거나 JSON 파싱이 안 되면 앱은 계속 동작 (메모 원문만 저장, 에러 표시)
 
@@ -128,6 +131,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 - 지원 브라우저: Chrome·Edge 최신 (Web Speech API). Safari·Firefox는 텍스트 입력 대체
 - 구글 OAuth 앱은 "테스트" 상태로 운영: 테스트 사용자 100명까지, 승인 7일 후 만료 → 발표 전날 재연결
 - 음성 비서 응답 목표 3초 이내 (Haiku 계열)
+- OpenAI 키는 OPENAI_API_KEY(서버 전용). 사용량 한도는 OpenAI 대시보드에서 월 $4로 제한
 - 시간대: 모든 날짜 계산은 Asia/Seoul 기준 (EC2는 UTC)
 
 # 시연 시나리오 (발표 5분 중 2분)

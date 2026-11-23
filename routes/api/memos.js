@@ -27,6 +27,23 @@ async function listMemos(userId, page = 1, subjectId = null) {
   return { items: rows, page, pages, total };
 }
 
+// 강의 녹음 조각(10분 이하) → 텍스트. 본문은 녹음 파일 그대로 (OpenAI 한도 25MB)
+router.post("/transcribe", express.raw({ type: ["audio/*", "video/webm"], limit: "25mb" }), async (req, res, next) => {
+  try {
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ ok: false, error: "녹음 파일이 비어 있어요" });
+    const text = await ai.transcribe({
+      userId: req.session.user.user_id,
+      audio: req.body,
+      mime: req.get("content-type").split(";")[0],
+      prompt: String(req.query.prompt || ""),
+    });
+    if (text === null) return res.status(502).json({ ok: false, error: "받아쓰기에 실패했어요. 잠시 후 다시 시도하세요" });
+    res.json({ ok: true, data: { text } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 async function getMemo(userId, memoId) {
   const [[memo]] = await pool.query(`${MEMO_SELECT} WHERE m.memo_id = ? AND m.user_id = ?`, [memoId, userId]);
   if (!memo) return null;

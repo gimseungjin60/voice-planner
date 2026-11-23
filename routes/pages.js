@@ -2,8 +2,8 @@
 const express = require("express");
 const pool = require("../db");
 const { requireLogin, requireAdmin } = require("../middleware/auth");
-const { listSubjects } = require("./api/subjects");
-const { TASK_SELECT } = require("./api/tasks");
+const { listSubjects, subjectOverview } = require("./api/subjects");
+const { TASK_SELECT, weeklyReport } = require("./api/tasks");
 const { listMemos, getMemo } = require("./api/memos");
 const { todayClasses } = require("./api/briefing");
 const { listUsers, getStats } = require("./api/admin");
@@ -19,7 +19,14 @@ router.use(requireLogin);
 
 router.get("/", async (req, res, next) => {
   try {
-    res.render("dashboard", { title: "대시보드", today: pool.kst(), classes: await todayClasses(req.session.user.user_id) });
+    const userId = req.session.user.user_id;
+    res.render("dashboard", {
+      title: "대시보드",
+      today: pool.kst(),
+      classes: await todayClasses(userId),
+      subjects: await listSubjects(userId),
+      todayDow: pool.kstDay(),
+    });
   } catch (err) {
     next(err);
   }
@@ -70,11 +77,40 @@ router.get("/tasks", async (req, res, next) => {
 
 router.get("/timetable", async (req, res, next) => {
   try {
-    res.render("timetable", { title: "시간표", subjects: await listSubjects(req.session.user.user_id) });
+    res.render("timetable", { title: "시간표", subjects: await listSubjects(req.session.user.user_id), todayDow: pool.kstDay() });
   } catch (err) {
     next(err);
   }
 });
+
+router.get("/subjects/:id", async (req, res, next) => {
+  try {
+    const subject = await subjectOverview(req.session.user.user_id, req.params.id);
+    if (!subject) return res.status(404).render("error", { title: "404", message: "과목을 찾을 수 없어요" });
+    res.render("subject", { title: subject.name, subject });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/report", async (req, res, next) => {
+  try {
+    res.render("report", { title: "주간 리포트", report: await weeklyReport(req.session.user.user_id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 받은 편지함·연동 설정: 데이터는 화면에서 /api/inbox, /api/integrations로 불러온다
+router.get("/inbox", async (req, res, next) => {
+  try {
+    res.render("inbox", { title: "받은 편지함", subjects: await listSubjects(req.session.user.user_id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/settings", (req, res) => res.render("settings", { title: "연동 설정" }));
 
 router.get("/admin", requireAdmin, async (req, res, next) => {
   try {

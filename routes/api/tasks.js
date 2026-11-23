@@ -12,6 +12,45 @@ const PRIORITY = ["low", "mid", "high"];
 const TASK_SELECT = `SELECT t.*, s.name AS subject_name, s.color AS subject_color
   FROM tasks t LEFT JOIN subjects s ON s.subject_id = t.subject_id`;
 
+// 주간 리포트: 이번 주(월~일, 한국 시간) 완료 수·지난주 대비·요일별·과목별 완료율
+async function weeklyReport(userId) {
+  const now = pool.kst();
+  const day = (ymd, n) => new Date(Date.parse(ymd) + n * 86400000).toISOString().slice(0, 10);
+  const mon = day(now.slice(0, 10), -((pool.kstDay() + 6) % 7));
+  const [thisMon, lastMon, nextMon] = [mon, day(mon, -7), day(mon, 7)];
+  const [[c]] = await pool.query(
+    `SELECT SUM(completed_at >= ?) AS done, SUM(completed_at >= ? AND completed_at < ?) AS last_done,
+            SUM(status <> 'done' AND due_at < ?) AS overdue
+     FROM tasks WHERE user_id = ?`,
+    [thisMon, lastMon, thisMon, now, userId],
+  );
+  const [days] = await pool.query(
+    "SELECT DATE_FORMAT(completed_at, '%Y-%m-%d') AS d, COUNT(*) AS n FROM tasks WHERE user_id = ? AND completed_at >= ? AND completed_at < ? GROUP BY d",
+    [userId, thisMon, nextMon],
+  );
+  const [bySubject] = await pool.query(
+    `SELECT s.name, s.color, COUNT(*) AS total, SUM(t.status = 'done') AS done
+     FROM tasks t LEFT JOIN subjects s ON s.subject_id = t.subject_id
+     WHERE t.user_id = ? AND t.due_at >= ? AND t.due_at < ?
+     GROUP BY t.subject_id, s.name, s.color ORDER BY total DESC`,
+    [userId, thisMon, nextMon],
+  );
+  const [completed] = await pool.query(
+    `${TASK_SELECT} WHERE t.user_id = ? AND t.completed_at >= ? ORDER BY t.completed_at DESC LIMIT 30`,
+    [userId, thisMon],
+  );
+  return {
+    from: thisMon,
+    to: day(mon, 6),
+    done: Number(c.done) || 0,
+    lastDone: Number(c.last_done) || 0,
+    overdue: Number(c.overdue) || 0,
+    daily: [0, 1, 2, 3, 4, 5, 6].map((i) => Number(days.find((x) => x.d === day(mon, i))?.n) || 0),
+    bySubject: bySubject.map((x) => ({ ...x, total: Number(x.total), done: Number(x.done) || 0 })),
+    completed,
+  };
+}
+
 // 'YYYY-MM-DDTHH:mm' / 'YYYY-MM-DD HH:mm' / 'YYYY-MM-DD' → 'YYYY-MM-DD HH:mm:ss', 빈 값은 null, 이상하면 undefined
 function toDatetime(v) {
   if (v === null || v === "" || v === undefined) return null;
@@ -166,6 +205,7 @@ router.delete("/:id", async (req, res, next) => {
   }
 });
 
+router.weeklyReport = weeklyReport;
 router.ownSubjectId = ownSubjectId;
 router.toDatetime = toDatetime;
 router.TASK_SELECT = TASK_SELECT;

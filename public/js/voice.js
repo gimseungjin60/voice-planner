@@ -7,12 +7,13 @@ const Voice = {
 
   // 듣기 시작. onInterim(임시 글자), onFinal(확정 문장), onEnd(완전히 끝남), onError(메시지)
   // 크롬은 말이 멈추면 인식을 스스로 끝내므로, 사용자가 stop()할 때까지 다시 시작한다
-  listen({ onInterim, onFinal, onEnd, onError }) {
+  // once=true면 한 문장만 듣고 끝낸다 (음성 비서용)
+  listen({ onInterim, onFinal, onEnd, onError, once = false }) {
     const rec = new Recognition();
     rec.lang = "ko-KR";
-    rec.continuous = true;
+    rec.continuous = !once;
     rec.interimResults = true;
-    let stopped = false;
+    let stopped = once;
     rec.onresult = (e) => {
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -51,8 +52,9 @@ const Voice = {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "ko-KR";
     u.rate = 1.05;
-    const ko = speechSynthesis.getVoices().find((v) => v.lang.startsWith("ko"));
-    if (ko) u.voice = ko;
+    const ko = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("ko"));
+    const best = ko.find((v) => /Natural/.test(v.name)) || ko.find((v) => /Online|Google/.test(v.name)) || ko[0];
+    if (best) u.voice = best;
     u.onend = u.onerror = () => onEnd?.();
     speechSynthesis.speak(u);
   },

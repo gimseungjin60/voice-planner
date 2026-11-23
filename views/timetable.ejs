@@ -1,61 +1,84 @@
 <%- include('partials/header') %>
 <% const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
-   const slots = subjects.flatMap((s) => s.schedules.map((sc) => ({ ...sc, name: s.name, color: s.color })));
-   const days = [1, 2, 3, 4, 5].concat(slots.some((x) => x.day_of_week === 6) ? [6] : [], slots.some((x) => x.day_of_week === 0) ? [0] : []);
-   const hours = slots.map((x) => Number(x.start_time.slice(0, 2)));
-   const from = Math.min(9, ...hours), to = Math.max(18, ...hours); %>
-<div class="page-head"><h1>시간표</h1><button class="btn" id="new-subject">+ 과목 추가</button></div>
-
-<section class="card table-scroll" style="margin-bottom: 20px">
-  <table class="timetable">
-    <thead><tr><th style="width: 56px"></th><% days.forEach((d) => { %><th><%= WEEK[d] %></th><% }) %></tr></thead>
-    <tbody>
-      <% for (let h = from; h <= to; h++) { %>
-        <tr><th><%= h %>시</th>
-          <% days.forEach((d) => { %><td>
-            <% slots.filter((x) => x.day_of_week === d && Number(x.start_time.slice(0, 2)) === h).forEach((x) => { %>
-              <div class="slot" style="background: <%= x.color %>"><b><%= x.name %></b><br /><%= x.start_time.slice(0, 5) %>~<%= x.end_time.slice(0, 5) %> <%= x.room || '' %></div>
-            <% }) %>
-          </td><% }) %>
-        </tr>
-      <% } %>
-    </tbody>
-  </table>
-</section>
-
-<section class="card">
-  <h2>내 과목</h2>
-  <% if (!subjects.length) { %><p class="muted">과목을 추가하면 AI가 메모에서 과목을 자동으로 찾아줘요</p><% } %>
-  <ul class="list">
-    <% subjects.forEach((s) => { %>
-      <li><span class="chip" style="background: <%= s.color %>"><%= s.name %></span>
-        <span class="muted" style="flex: 1"><%= s.professor || '' %> · <%= s.schedules.map((x) => WEEK[x.day_of_week] + ' ' + x.start_time.slice(0, 5)).join(', ') || '시간 없음' %></span>
-        <button class="btn ghost sm" data-edit="<%= s.subject_id %>">수정</button>
-        <button class="btn danger sm" data-delete="<%= s.subject_id %>">삭제</button></li>
-    <% }) %>
-  </ul>
-</section>
-
-<form class="card stack hidden" id="subject-form" style="margin-top: 20px">
-  <h2 id="form-title">과목 추가</h2>
-  <div class="form-row">
-    <div style="flex: 2"><label for="s-name">과목명</label><input id="s-name" maxlength="100" required /></div>
-    <div><label for="s-prof">교수</label><input id="s-prof" maxlength="50" /></div>
-    <div style="flex: 0; min-width: 70px"><label for="s-color">색상</label><input id="s-color" type="color" value="#6C8EF5" style="padding: 2px; height: 42px" /></div>
+   const PRESETS = ["#6C8EF5", "#F5A86C", "#7CC9A0", "#E57AA8", "#A98BF0", "#F2C94C", "#56C2D6", "#8E8E93"]; %>
+<header class="subnav">
+  <div class="subnav-inner">
+    <h1 class="subnav-title">시간표 <span class="count"><%= subjects.length %>과목</span></h1>
+    <div class="subnav-actions">
+      <button class="btn sm" id="new-subject"><svg class="i sm"><use href="#i-plus"/></svg>과목 추가</button>
+    </div>
   </div>
-  <div><label>수업 시간</label><div class="stack" id="schedule-rows"></div>
-    <button type="button" class="btn ghost sm" id="add-row" style="margin-top: 8px">+ 시간 추가</button></div>
-  <div class="error-msg" id="subject-error" role="alert"></div>
-  <div><button class="btn">저장</button> <button type="button" class="btn ghost" id="cancel-form">취소</button></div>
-</form>
+</header>
+
+<main class="container stack">
+  <section class="card flush">
+    <%- include('partials/tt-grid') %>
+  </section>
+
+  <section>
+    <p class="section-label">내 과목</p>
+    <% if (!subjects.length) { %>
+      <div class="card empty">
+        <div class="empty-icon"><svg class="i"><use href="#i-book"/></svg></div>
+        <strong>과목을 추가해 보세요</strong>과목을 등록하면 AI가 메모에서 과목을 자동으로 찾아줘요
+      </div>
+    <% } else { %>
+      <div class="group">
+        <% subjects.forEach((s) => { %>
+          <div class="row">
+            <span class="icon-tile" style="background: <%= s.color %>"><svg class="i"><use href="#i-book"/></svg></span>
+            <div class="row-main">
+              <a class="row-title" href="/subjects/<%= s.subject_id %>"><%= s.name %></a>
+              <div class="row-sub"><%= s.professor ? s.professor + ' · ' : '' %><%= s.schedules.map((x) => WEEK[x.day_of_week] + ' ' + x.start_time.slice(0, 5) + '~' + x.end_time.slice(0, 5)).join(', ') || '수업 시간 없음' %></div>
+            </div>
+            <button class="btn plain sm" data-edit="<%= s.subject_id %>">수정</button>
+            <button class="btn plain danger icon sm" data-delete="<%= s.subject_id %>" data-name="<%= s.name %>" aria-label="<%= s.name %> 삭제"><svg class="i sm"><use href="#i-trash"/></svg></button>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </section>
+</main>
+
+<dialog id="subject-dialog" aria-labelledby="form-title">
+  <form class="sheet" id="subject-form">
+    <div class="sheet-head">
+      <h2 id="form-title">과목 추가</h2>
+      <button type="button" class="btn gray icon sm" id="cancel-x" aria-label="닫기"><svg class="i sm"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="sheet-body">
+      <div class="form-row">
+        <div class="field" style="flex: 2"><label for="s-name">과목명</label><input id="s-name" maxlength="100" required placeholder="예) 데이터베이스" /></div>
+        <div class="field"><label for="s-prof">교수</label><input id="s-prof" maxlength="50" placeholder="선택" /></div>
+      </div>
+      <div class="field">
+        <label>색상</label>
+        <div class="swatches" id="swatches">
+          <% PRESETS.forEach((c) => { %><button type="button" class="swatch" data-color="<%= c %>" style="background: <%= c %>" aria-label="색상 <%= c %>"></button><% }) %>
+          <input id="s-color" type="color" value="#6C8EF5" aria-label="직접 선택" title="직접 선택" />
+        </div>
+      </div>
+      <div class="field">
+        <label>수업 시간</label>
+        <div id="schedule-rows"></div>
+        <button type="button" class="btn plain sm" id="add-row" style="margin-top: 8px; margin-left: -8px"><svg class="i sm"><use href="#i-plus"/></svg>시간 추가</button>
+      </div>
+      <div class="error-msg" id="subject-error" role="alert"></div>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn gray" id="cancel-form">취소</button>
+      <button class="btn">저장</button>
+    </div>
+  </form>
+</dialog>
 
 <template id="row-tpl">
-  <div class="form-row">
-    <select class="r-day" aria-label="요일"><% [1, 2, 3, 4, 5, 6, 0].forEach((d) => { %><option value="<%= d %>"><%= WEEK[d] %></option><% }) %></select>
-    <input class="r-start" type="time" value="09:00" aria-label="시작" required />
-    <input class="r-end" type="time" value="10:30" aria-label="끝" required />
+  <div class="sched-row">
+    <select class="r-day" aria-label="요일"><% [1, 2, 3, 4, 5, 6, 0].forEach((d) => { %><option value="<%= d %>"><%= WEEK[d] %>요일</option><% }) %></select>
+    <input class="r-start" type="time" value="09:00" step="1800" aria-label="시작" required />
+    <input class="r-end" type="time" value="10:30" step="1800" aria-label="끝" required />
     <input class="r-room" maxlength="50" placeholder="강의실" aria-label="강의실" />
-    <button type="button" class="btn ghost sm r-del" style="flex: 0">✕</button>
+    <button type="button" class="btn plain danger icon sm r-del" aria-label="이 시간 삭제"><svg class="i sm"><use href="#i-x"/></svg></button>
   </div>
 </template>
 <script id="subjects-data" type="application/json"><%- JSON.stringify(subjects).replace(/</g, '\\u003c') %></script>

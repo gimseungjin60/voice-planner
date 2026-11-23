@@ -34,15 +34,79 @@ async function call({ feature, userId, memoId = null, system, input, json = true
     result = json ? parseJson(text) : text || null;
   } catch (err) {
     text = `ERROR: ${err.message}`;
-    console.error(`[ai:${feature}]`, err.message);
+    console.error(`[ai:${feature}]`, redact(err.message));
   }
-  await pool
+  await log(userId, memoId, feature, input, text, tokens, result !== null);
+  return result;
+}
+
+// 에러 메시지에 섞여 오는 키 조각 가리기 (로그·DB에 키 금지)
+const redact = (m) => String(m).replace(/(sk-|Bearer\s+)[\w*.-]+/gi, "$1***");
+
+// ai_logs 기록 (실패해도 무시)
+function log(userId, memoId, feature, input, output, tokens, success) {
+  output = output && redact(output);
+  return pool
     .query(
       "INSERT INTO ai_logs (user_id, memo_id, feature, input_text, output_text, tokens, success) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [userId, memoId, feature, input.slice(0, 60000), text, tokens, result !== null],
+      [userId, memoId, feature, String(input).slice(0, 60000), output, tokens, success],
     )
     .catch((e) => console.error("[ai_logs]", e.message));
-  return result;
+}
+
+// ---------- OpenAI 음성 (SDK 없이 fetch). 키가 없거나 실패하면 null ----------
+const OPENAI = "https://api.openai.com/v1/audio";
+const openaiHeaders = () => ({ Authorization: `Bearer ${process.env.OPENAI_API_KEY}` });
+
+// 강의 녹음 조각 → 텍스트 (gpt-4o-mini-transcribe, 분당 $0.003). prompt = 앞 조각 끝부분 (문맥 이어 붙이기)
+async function transcribe({ userId, audio, mime, prompt = "" }) {
+  let text = null;
+  try {
+    if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY가 설정되지 않았어요");
+    const form = new FormData();
+    const ext = { "audio/mpeg": "mp3", "audio/mp4": "mp4", "audio/ogg": "ogg", "audio/wav": "wav" }[mime] || "webm";
+    form.append("file", new Blob([audio], { type: mime }), `lecture.${ext}`);
+    form.append("model", "gpt-4o-mini-transcribe");
+    form.append("language", "ko");
+    form.append("chunking_strategy", "auto");
+    if (prompt) form.append("prompt", prompt.slice(-500));
+    const res = await fetch(`${OPENAI}/transcriptions`, { method: "POST", headers: openaiHeaders(), body: form });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error?.message || `HTTP ${res.status}`);
+    text = String(body.text || "").trim();
+  } catch (err) {
+    console.error("[ai:transcribe]", redact(err.message));
+    await log(userId, null, "transcribe", `audio ${audio.length} bytes`, `ERROR: ${err.message}`, null, false);
+    return null;
+  }
+  await log(userId, null, "transcribe", `audio ${audio.length} bytes`, text, null, true);
+  return text;
+}
+
+// 브리핑 문장 → mp3 (gpt-4o-mini-tts, 목소리 marin: OpenAI 권장 최고 품질)
+async function speak({ userId, text }) {
+  try {
+    if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY가 설정되지 않았어요");
+    const res = await fetch(`${OPENAI}/speech`, {
+      method: "POST",
+      headers: { ...openaiHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-4o-mini-tts",
+        voice: "marin",
+        input: text.slice(0, 4096),
+        instructions: "대학생에게 아침 일정을 알려주는 다정한 한국어 비서. 밝고 차분한 20대 톤, 또박또박 자연스러운 서울 표준어, 약간 빠르게.",
+        response_format: "mp3",
+      }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error?.message || `HTTP ${res.status}`);
+    const mp3 = Buffer.from(await res.arrayBuffer());
+    await log(userId, null, "tts", text, `mp3 ${mp3.length} bytes`, null, true);
+    return mp3;
+  } catch (err) {
+    console.error("[ai:tts]", redact(err.message));
+    await log(userId, null, "tts", text, `ERROR: ${err.message}`, null, false);
+    return null;
+  }
 }
 
 // 오늘부터 14일 달력. "다음 주 화요일" 같은 상대 날짜를 모델이 정확히 계산하도록 표로 준다
@@ -129,4 +193,4 @@ async function makeBriefing({ userId, userName, today, classes, dueTasks }) {
   return call({ feature: "briefing", userId, system, input, json: false, maxTokens: 500 });
 }
 
-module.exports = { extractTasks, summarizeLecture, prioritize, makeBriefing, parseJson, calendar };
+module.exports = { transcribe, speak, extractTasks, summarizeLecture, prioritize, makeBriefing, parseJson, calendar };

@@ -10,6 +10,7 @@
 - 프론트: EJS + 순수 CSS + 바닐라 JS(`fetch`). React·Vue·Tailwind 빌드 도구 추가 금지
 - 음성: 브라우저 Web Speech API(STT `SpeechRecognition`, TTS `speechSynthesis`), 한국어 `ko-KR`
 - AI: Anthropic SDK(`@anthropic-ai/sdk`), 서버에서만 호출. 키는 `.env`의 `ANTHROPIC_API_KEY`
+- 강의 녹음 받아쓰기만 OpenAI `gpt-4o-mini-transcribe` (SDK 없이 fetch, `services/ai.js`). 키는 `.env`의 `OPENAI_API_KEY` (2026-11-23 결정)
 - 외부 연동: 구글(`googleapis`, OAuth 2.0: calendar.events + gmail.readonly), 노션(`@notionhq/client`, internal integration 토큰). 서버에서만 호출, 키는 `.env`
 
 ## 폴더 구조 (교수님 todosapp 구조를 확장)

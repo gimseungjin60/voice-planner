@@ -1,17 +1,22 @@
 <%
-  const links = [["/", "대시보드"], ["/memo", "음성 메모"], ["/memos", "메모 목록"], ["/tasks", "할 일"], ["/timetable", "시간표"]];
-  if (user.role === "admin") links.push(["/admin", "관리자"]);
-  const isActive = (href) => (href === "/" ? path === "/" : path.startsWith(href) && !(href === "/memo" && path.startsWith("/memos")));
+  const links = [
+    ["/", "대시보드", "home"], ["/memo", "음성 메모", "mic"], ["/memos", "메모", "note"], ["/tasks", "할 일", "checklist"],
+    ["/timetable", "시간표", "grid"], ["/report", "리포트", "checklist"], ["/inbox", "받은 편지함", "mail"], ["/settings", "연동", "sliders"],
+  ];
+  if (user.role === "admin") links.push(["/admin", "관리자", "shield"]);
+  const isActive = (href) => href === "/" ? path === "/" : (path === href || path.startsWith(href + "/"));
 %>
-<nav class="nav">
-  <div class="nav-inner">
-    <a class="brand" href="/">🎙️ 보이스 플래너</a>
-    <div class="nav-links">
+<nav class="gnav" aria-label="주 메뉴">
+  <div class="gnav-inner">
+    <a class="brand" href="/"><span class="brand-mark"><svg class="i"><use href="#i-mic"/></svg></span>보이스 플래너</a>
+    <div class="gnav-links">
       <% links.forEach(([href, label]) => { %>
-        <a href="<%= href %>" class="<%= isActive(href) ? 'active' : '' %>"><%= label %></a>
+        <a href="<%= href %>" class="<%= isActive(href) ? 'active' : '' %>" <%- isActive(href) ? 'aria-current="page"' : '' %>><%= label %></a>
       <% }) %>
     </div>
-    <span class="muted"><%= user.user_name %>님</span>
-    <button class="btn ghost sm" id="logout-btn">로그아웃</button>
+    <div class="gnav-user">
+      <span class="name"><%= user.user_name %>님</span>
+      <button class="gnav-icon" id="logout-btn" title="로그아웃" aria-label="로그아웃"><svg class="i"><use href="#i-logout"/></svg></button>
+    </div>
   </div>
 </nav>
