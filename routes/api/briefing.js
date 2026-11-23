@@ -59,14 +59,19 @@ router.get("/today/audio", async (req, res, next) => {
     const [[saved]] = await pool.query("SELECT content FROM briefings WHERE user_id = ? AND brief_date = ?", [userId, today]);
     if (!saved) return res.status(404).json({ ok: false, error: "오늘 브리핑이 아직 없어요" });
     const key = `${userId}:${today}`;
-    let mp3 = audioCache.get(key);
-    if (!mp3) {
-      mp3 = await ai.speak({ userId, text: saved.content });
-      if (!mp3) return res.status(502).json({ ok: false, error: "음성을 만들지 못했어요" });
-      for (const k of audioCache.keys()) if (!k.endsWith(today)) audioCache.delete(k); // 지난 날짜 정리
-      audioCache.set(key, mp3);
+    if (audioCache.has(key)) return res.type("audio/mpeg").send(audioCache.get(key));
+    const stream = await ai.speak({ userId, text: saved.content });
+    if (!stream) return res.status(502).json({ ok: false, error: "음성을 만들지 못했어요" });
+    // 만들어지는 대로 브라우저로 흘려보내면서 모아 두었다가 다 받으면 캐시 (nginx 버퍼링 끔)
+    res.type("audio/mpeg").set("X-Accel-Buffering", "no");
+    const parts = [];
+    for await (const chunk of stream) {
+      parts.push(chunk);
+      res.write(chunk);
     }
-    res.type("audio/mpeg").send(mp3);
+    res.end();
+    for (const k of audioCache.keys()) if (!k.endsWith(today)) audioCache.delete(k); // 지난 날짜 정리
+    audioCache.set(key, Buffer.concat(parts));
   } catch (err) {
     next(err);
   }

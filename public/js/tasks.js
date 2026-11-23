@@ -39,7 +39,6 @@ function render() {
     const list = shown.filter((t) => t.status === st);
     col.querySelector(".cards").innerHTML = list.map(card).join("") || `<div class="column-empty">${EMPTY[st]}</div>`;
     col.querySelector(".count").textContent = list.length;
-    document.querySelector(`[data-count="${st}"]`).textContent = list.length;
   });
   document.getElementById("total-count").textContent = `${shown.filter((t) => t.status !== "done").length}개 남음`;
 }

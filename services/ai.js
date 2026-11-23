@@ -70,7 +70,8 @@ async function transcribe({ userId, audio, mime, prompt = "" }) {
     form.append("language", "ko");
     form.append("chunking_strategy", "auto");
     if (prompt) form.append("prompt", prompt.slice(-500));
-    const res = await fetch(`${OPENAI}/transcriptions`, { method: "POST", headers: openaiHeaders(), body: form });
+    // 10분 조각 실측 약 11초. 멈춘 요청이 서버를 붙잡지 않게 90초 제한 (nginx proxy_read_timeout 120s보다 짧게)
+    const res = await fetch(`${OPENAI}/transcriptions`, { method: "POST", headers: openaiHeaders(), body: form, signal: AbortSignal.timeout(90000) });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error?.message || `HTTP ${res.status}`);
     text = String(body.text || "").trim();
@@ -83,7 +84,8 @@ async function transcribe({ userId, audio, mime, prompt = "" }) {
   return text;
 }
 
-// 브리핑 문장 → mp3 (gpt-4o-mini-tts, 목소리 marin: OpenAI 권장 최고 품질)
+// 브리핑 문장 → mp3 스트림 (gpt-4o-mini-tts, 목소리 marin: OpenAI 권장 최고 품질)
+// 전체 생성(약 5초)을 기다리지 않고 만들어지는 대로 흘려보내 첫 소리를 빨리 낸다. 실패하면 null
 async function speak({ userId, text }) {
   try {
     if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY가 설정되지 않았어요");
@@ -97,11 +99,11 @@ async function speak({ userId, text }) {
         instructions: "대학생에게 아침 일정을 알려주는 다정한 한국어 비서. 밝고 차분한 20대 톤, 또박또박 자연스러운 서울 표준어, 약간 빠르게.",
         response_format: "mp3",
       }),
+      signal: AbortSignal.timeout(60000),
     });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error?.message || `HTTP ${res.status}`);
-    const mp3 = Buffer.from(await res.arrayBuffer());
-    await log(userId, null, "tts", text, `mp3 ${mp3.length} bytes`, null, true);
-    return mp3;
+    await log(userId, null, "tts", text, "mp3 stream", null, true);
+    return res.body;
   } catch (err) {
     console.error("[ai:tts]", redact(err.message));
     await log(userId, null, "tts", text, `ERROR: ${err.message}`, null, false);

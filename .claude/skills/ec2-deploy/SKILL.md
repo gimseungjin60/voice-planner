@@ -15,8 +15,19 @@ cp .env.example .env   # 값은 사용자가 직접 입력 (Claude가 키를 보
 npm ci && npm run db:init
 pm2 start app.js --name voice-planner && pm2 save && pm2 startup
 ```
-nginx: `/etc/nginx/sites-available/default`의 `location /`에 `proxy_pass http://127.0.0.1:3000;` 추가 → `sudo nginx -t && sudo systemctl reload nginx`.
-보안그룹 인바운드: 22(내 IP), 80(전체). 3306은 열지 않는다.
+nginx: `/etc/nginx/sites-available/default`의 `server { … }`를 아래처럼 → `sudo nginx -t && sudo systemctl reload nginx`.
+```nginx
+client_max_body_size 25m;       # 강의 녹음 10분 조각(약 2.4MB) 업로드. 기본 1MB면 413으로 막힌다
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;   # trust proxy + 세션 쿠키
+    proxy_read_timeout 120s;    # 받아쓰기 서버 제한 90초보다 길게 (기본 60초)
+}
+```
+보안그룹 인바운드: 22(내 IP), 80·443(전체). 3306은 열지 않는다. 아웃바운드는 기본(전체 허용) 유지 → api.anthropic.com·api.openai.com 호출.
+pm2는 기본 fork 모드 1개로 둔다 (브리핑 음성 캐시가 프로세스 메모리에 있어서 cluster 모드면 프로세스마다 따로 생성됨).
 
 ## 업데이트 배포
 ```bash
@@ -28,5 +39,7 @@ cd ~/voice-planner && git pull && npm ci && pm2 reload voice-planner
 2. Playwright MCP로 `http://<EC2-IP>` 접속 → 로그인 → 대시보드·음성메모·할 일·시간표·관리자 화면 스크린샷을 `docs/screenshots/`에 저장 (제출 PDF용)
 
 ## Gotchas
-- Web Speech API(마이크)는 HTTPS 또는 localhost에서만 동작한다. 발표 시연은 ① 도메인 + certbot HTTPS, 또는 ② 크롬 `chrome://flags/#unsafely-treat-insecure-origin-as-secure`에 EC2 주소 등록 중 하나로 준비.
+- 마이크(Web Speech API, 강의 녹음 MediaRecorder 둘 다)는 HTTPS 또는 localhost에서만 동작한다. 발표 시연은 ① 도메인 + certbot HTTPS, 또는 ② 크롬 `chrome://flags/#unsafely-treat-insecure-origin-as-secure`에 EC2 주소 등록 중 하나로 준비.
 - EC2 재부팅 후 앱이 안 뜨면 `pm2 resurrect`.
+- 배포 후 음성 확인: 강의 녹음 30초 → 정지 → 글자가 나오는지, 대시보드 "브리핑 듣기" → 2초 안에 소리 나는지. 413이면 client_max_body_size, 504면 proxy_read_timeout 확인.
+- `.env`에 ANTHROPIC_API_KEY·OPENAI_API_KEY가 있어야 한다. 없으면 AI 요약은 원문만 저장, 받아쓰기는 실패 안내, 브리핑은 브라우저 목소리로 대체된다 (앱은 멈추지 않음).

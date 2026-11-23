@@ -18,7 +18,8 @@ app.use(
     secret: process.env.SESSION_SECRET || "dev-only-secret",
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, sameSite: "lax", maxAge: 1000 * 60 * 60 * 24 * 7 },
+    // secure "auto": EC2 HTTPS(nginx X-Forwarded-Proto)에선 secure 쿠키, 로컬 http에선 일반 쿠키
+    cookie: { httpOnly: true, secure: "auto", sameSite: "lax", maxAge: 1000 * 60 * 60 * 24 * 7 },
   }),
 );
 app.use((req, res, next) => {
@@ -41,6 +42,7 @@ app.use((req, res) => {
 });
 app.use((err, req, res, next) => {
   console.error(err);
+  if (res.headersSent) return res.destroy(); // 음성 스트리밍 도중 실패: 이미 보낸 응답은 끊기만 한다
   const status = err.status || err.statusCode || 500;
   const message = status < 500 ? err.message : "서버 오류가 발생했어요";
   if (req.originalUrl.startsWith("/api")) return res.status(status).json({ ok: false, error: message });
