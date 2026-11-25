@@ -196,4 +196,30 @@ async function makeBriefing({ userId, userName, today, classes, dueTasks }) {
   return call({ feature: "briefing", userId, system, input, json: false, maxTokens: 500 });
 }
 
-module.exports = { transcribe, speak, extractTasks, summarizeLecture, prioritize, makeBriefing, parseJson, calendar };
+// 5. 메일(보낸 사람·제목·snippet만) → 과제·마감이 있는 메일만 할 일 후보로. 실패하면 null (호출부는 다음 동기화 때 다시 시도)
+async function analyzeMails({ userId, mails, subjects, today }) {
+  if (!mails.length) return [];
+  const input = mails.map((m, i) => `${i}|${m.sender}|${m.subject}|${m.snippet}`).join("\n");
+  const system = `너는 대학생 메일함에서 할 일을 찾는 비서다. 각 줄은 번호|보낸 사람|제목|미리보기다.
+오늘: ${today} (${WEEK[new Date(today + "T12:00:00Z").getUTCDay()]}요일)
+달력: ${calendar(today)}
+내 과목 목록: ${subjects.length ? subjects.join(", ") : "(없음)"}
+규칙:
+- 과제 제출, 시험, 퀴즈, 발표, 신청 마감처럼 학생이 직접 해야 할 일이 있는 메일만 고른다. 광고·뉴스레터·알림성 메일은 고르지 않는다.
+- title은 "기말 리포트 제출"처럼 할 일 이름으로 30자 이내.
+- 마감이 보이면 due_at을 "YYYY-MM-DD HH:mm"으로, 시간이 없으면 23:59. 모르면 null.
+- subject는 내 과목 목록에 있는 이름 중에서만, 없으면 null.
+JSON만 출력: {"items":[{"index":0,"title":"...","due_at":"YYYY-MM-DD HH:mm","subject":"과목명 또는 null"}]} (할 일이 없으면 items는 빈 배열)`;
+  const r = await call({ feature: "mail", userId, system, input, maxTokens: 1500 });
+  if (!r || !Array.isArray(r.items)) return null;
+  return r.items
+    .filter((x) => mails[Number(x.index)] && x.title)
+    .map((x) => ({
+      mail: mails[Number(x.index)],
+      title: String(x.title).slice(0, 200),
+      due_at: /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(x.due_at || "") ? x.due_at.slice(0, 16) + ":00" : null,
+      subject: subjects.includes(x.subject) ? x.subject : null,
+    }));
+}
+
+module.exports = { transcribe, speak, extractTasks, summarizeLecture, prioritize, makeBriefing, analyzeMails, parseJson, calendar };

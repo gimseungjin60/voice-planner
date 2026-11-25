@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(requireLogin);
 
 // 승인 범위 문자열 → 화면용 짧은 이름
-const scopeNames = (s = "") => [s.includes("calendar") && "calendar", s.includes("gmail") && "gmail"].filter(Boolean);
+const scopeNames = (s) => [(s = s || "").includes("calendar") && "calendar", s.includes("gmail") && "gmail"].filter(Boolean);
 
 router.get("/", async (req, res, next) => {
   try {
@@ -42,9 +42,9 @@ router.put("/notion", async (req, res, next) => {
     if (token && !/^(ntn_|secret_)\S{10,}$/.test(token)) return res.status(400).json({ ok: false, error: "노션 토큰 형식이 올바르지 않아요" });
     if (token) {
       await pool.query(
-        `INSERT INTO integrations (user_id, provider, access_token, target_ref) VALUES (?, 'notion', ?, ?)
+        `INSERT INTO integrations (user_id, provider, access_token, target_ref, connected_at) VALUES (?, 'notion', ?, ?, ?)
          ON DUPLICATE KEY UPDATE access_token = VALUES(access_token), target_ref = VALUES(target_ref)`,
-        [userId, token, ref],
+        [userId, token, ref, pool.kst()], // 서버(EC2) 시간대가 UTC라 한국 시간을 직접 넣는다
       );
     } else {
       const [r] = await pool.query("UPDATE integrations SET target_ref = ? WHERE user_id = ? AND provider = 'notion'", [ref, userId]);

@@ -38,6 +38,9 @@ app.use("/api/inbox", require("./routes/api/inbox"));
 app.use("/api/integrations", require("./routes/api/integrations"));
 app.use("/api/events", require("./routes/api/events"));
 app.use("/api/timeline", require("./routes/api/timeline"));
+app.use("/api/sync", require("./routes/api/sync"));
+app.use("/api/notion", require("./routes/api/notion"));
+app.use("/auth", require("./routes/oauth"));
 app.use("/", require("./routes/pages"));
 
 app.use((req, res) => {

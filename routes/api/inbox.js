@@ -1,5 +1,6 @@
 // /api/inbox  받은 편지함: Gmail에서 AI가 찾은 할 일 후보 목록 · 수락(→ tasks) · 무시
-// 후보를 만드는 일(/api/sync/gmail)은 services/google.js 연동 후 추가. 여기는 DB에 있는 후보만 다룬다
+// 후보는 /api/sync/gmail이 만든다. 여기는 DB에 있는 후보만 다룬다
+// ai_title이 NULL인 행은 할 일이 없던 메일의 '봤음' 표시라 목록·개수에서 뺀다
 const express = require("express");
 const pool = require("../../db");
 const { requireLogin } = require("../../middleware/auth");
@@ -15,14 +16,14 @@ router.get("/", async (req, res, next) => {
     const userId = req.session.user.user_id;
     const [[google]] = await pool.query("SELECT last_synced_at FROM integrations WHERE user_id = ? AND provider = 'google'", [userId]);
     // 구글을 끊었어도 이미 가져온 후보가 있으면 보여준다 (연동 해제 시 데이터는 유지)
-    const [countRows] = await pool.query("SELECT status, COUNT(*) AS n FROM inbox_items WHERE user_id = ? GROUP BY status", [userId]);
+    const [countRows] = await pool.query("SELECT status, COUNT(*) AS n FROM inbox_items WHERE user_id = ? AND ai_title IS NOT NULL GROUP BY status", [userId]);
     const counts = Object.fromEntries(STATUS.map((s) => [s, Number(countRows.find((r) => r.status === s)?.n || 0)]));
     if (!google && !countRows.length) return res.json({ ok: true, data: { connected: false, items: [], counts } });
     const status = STATUS.includes(req.query.status) ? req.query.status : "pending";
     const [items] = await pool.query(
       `SELECT i.*, s.name AS subject_name, s.color AS subject_color
        FROM inbox_items i LEFT JOIN subjects s ON s.subject_id = i.subject_id
-       WHERE i.user_id = ? AND i.status = ? ORDER BY i.received_at DESC, i.item_id DESC LIMIT 100`,
+       WHERE i.user_id = ? AND i.status = ? AND i.ai_title IS NOT NULL ORDER BY i.received_at DESC, i.item_id DESC LIMIT 100`,
       [userId, status],
     );
     res.json({ ok: true, data: { connected: true, last_synced_at: google?.last_synced_at || null, counts, items } });
@@ -37,7 +38,7 @@ router.post("/:id/accept", async (req, res, next) => {
   try {
     const userId = req.session.user.user_id;
     const b = req.body || {};
-    const [[item]] = await conn.query("SELECT * FROM inbox_items WHERE item_id = ? AND user_id = ?", [req.params.id, userId]);
+    const [[item]] = await conn.query("SELECT * FROM inbox_items WHERE item_id = ? AND user_id = ? AND ai_title IS NOT NULL", [req.params.id, userId]);
     if (!item) return res.status(404).json({ ok: false, error: "후보를 찾을 수 없어요" });
     if (item.status === "accepted") return res.status(409).json({ ok: false, error: "이미 할 일로 추가한 후보예요" });
     const title = String(b.title ?? item.ai_title ?? item.subject ?? "").trim();
