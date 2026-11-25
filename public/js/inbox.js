@@ -27,13 +27,20 @@ function itemHtml(it) {
   let body;
   if (it.status === "pending")
     body = `<div class="found">
-        <div class="found-label">AI가 찾은 할 일 · 고쳐서 추가할 수 있어요${it.ai_due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}</div>
-        <div class="found-meta">
+        <div class="found-label"><svg class="i" aria-hidden="true"><use href="#i-sparkles"/></svg>AI가 정리한 할 일</div>
+        <div class="found-read">
+          <b class="grow">${esc(it.ai_title)}</b>
+          ${it.ai_due_at ? `<span class="due ${cls}">${esc(label)}</span>` : `<span class="fine">마감 없음</span>`}
+          ${chip(it.subject_name, it.subject_color, true)}
+        </div>
+        <div class="found-meta" hidden>
           <input class="f-title" value="${esc(it.ai_title)}" maxlength="200" aria-label="할 일 제목" />
           <input class="f-due pill" type="datetime-local" value="${due}" aria-label="마감" />
           <select class="f-subject pill" aria-label="과목">${subjectOptions}</select>
         </div>
         <div class="mail-actions">
+          <button class="btn text" data-edit><svg class="i sm" aria-hidden="true"><use href="#i-pencil"/></svg>수정</button>
+          <span class="grow"></span>
           <button class="btn line" data-ignore="${it.item_id}">무시</button>
           <button class="btn" data-accept="${it.item_id}"><svg class="i sm" aria-hidden="true"><use href="#i-plus"/></svg>할 일로</button>
         </div></div>`;
@@ -44,8 +51,8 @@ function itemHtml(it) {
   return `<article class="mail-card${it.status !== "pending" ? ` settled ${it.status}` : ""}" data-id="${it.item_id}">
     <div class="mail-head">
       <span class="avatar" style="${it.subject_color ? `--c:${esc(it.subject_color)}` : ""}" aria-hidden="true">${esc(from.initial)}</span>
-      <div class="grow"><div class="mail-from">${esc(from.name)}${from.addr ? `<small>&lt;${esc(from.addr)}&gt;</small>` : ""}</div>
-      <div class="mail-time">${received(it.received_at)}</div></div>
+      <div class="grow mail-from">${esc(from.name)}${from.addr ? `<small>${esc(from.addr)}</small>` : ""}</div>
+      <div class="mail-time">${received(it.received_at)}</div>
     </div>
     <div class="mail-subject">${esc(it.subject)}</div>
     ${it.snippet ? `<div class="mail-preview">${esc(it.snippet)}</div>` : ""}
@@ -61,6 +68,7 @@ const EMPTY = {
 async function load() {
   const r = await api(`/api/inbox?status=${status}`, { quiet: true });
   if (!r.ok || !r.data.connected) {
+    list.classList.remove("mail-list");
     list.innerHTML = `<div class="card empty"><div class="empty-icon blue"><svg class="i"><use href="#i-mail"/></svg></div>
       <p class="title">구글 계정을 연결해 주세요</p><p class="desc">연결하면 학교 메일에서 과제·마감을 자동으로 찾아줘요.</p>
       <a class="btn" href="/settings">연동 설정으로</a></div>`;
@@ -70,11 +78,14 @@ async function load() {
   const { items, counts, last_synced_at } = r.data;
   document.getElementById("last-sync").textContent = `마지막 확인 ${ago(last_synced_at)}`;
   document.querySelectorAll("[data-n]").forEach((el) => (el.textContent = counts[el.dataset.n] ?? 0));
+  document.getElementById("pending-count").textContent = counts.pending ? `새 후보 ${counts.pending}개` : "";
+  list.classList.remove("mail-list");
   if (!items.length) {
     const [title, desc] = EMPTY[status];
     list.innerHTML = `<div class="empty-col" style="padding: 40px 24px"><p class="title" style="color: var(--ink); font-size: 15px; font-weight: 600">${title}</p>${desc ? `<p>${desc}</p>` : ""}</div>`;
     return;
   }
+  list.classList.add("mail-list");
   list.innerHTML = items.map(itemHtml).join("");
   items.forEach((it) => {
     const sel = list.querySelector(`[data-id="${it.item_id}"] .f-subject`);
@@ -86,6 +97,15 @@ list.addEventListener("click", async (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   const cardEl = b.closest(".mail-card");
+  if (b.hasAttribute("data-edit")) {
+    // 읽기 모드 → 고치기 모드. 고친 값은 [할 일로]에서 그대로 쓴다
+    const meta = cardEl.querySelector(".found-meta");
+    meta.hidden = false;
+    cardEl.querySelector(".found-read").hidden = true;
+    b.hidden = true;
+    meta.querySelector(".f-title").focus();
+    return;
+  }
   if (b.dataset.accept) {
     const body = {
       title: cardEl.querySelector(".f-title").value,

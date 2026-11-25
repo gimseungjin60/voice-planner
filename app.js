@@ -34,6 +34,10 @@ app.use("/api/memos", require("./routes/api/memos"));
 app.use("/api/tasks", require("./routes/api/tasks"));
 app.use("/api/briefing", require("./routes/api/briefing"));
 app.use("/api/admin", require("./routes/api/admin"));
+app.use("/api/inbox", require("./routes/api/inbox"));
+app.use("/api/integrations", require("./routes/api/integrations"));
+app.use("/api/events", require("./routes/api/events"));
+app.use("/api/timeline", require("./routes/api/timeline"));
 app.use("/", require("./routes/pages"));
 
 app.use((req, res) => {

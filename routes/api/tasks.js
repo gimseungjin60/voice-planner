@@ -213,5 +213,6 @@ router.delete("/:id", async (req, res, next) => {
 router.weeklyReport = weeklyReport;
 router.ownSubjectId = ownSubjectId;
 router.toDatetime = toDatetime;
+router.ownSubjectId = ownSubjectId;
 router.TASK_SELECT = TASK_SELECT;
 module.exports = router;

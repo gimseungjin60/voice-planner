@@ -1,24 +1,36 @@
 <%- include('partials/header') %>
 <main class="container">
   <div class="page-head">
-    <h1>할 일 <span class="sub" id="total-count"></span></h1>
-    <select id="subject-filter" class="pill" aria-label="과목 필터">
-      <option value="">모든 과목</option>
-      <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %>
-    </select>
+    <div>
+      <h1>할 일 <span class="count num" id="total-count"></span></h1>
+      <p>말로 남긴 할 일과 직접 추가한 할 일을 한곳에서 관리해요.</p>
+    </div>
   </div>
 
   <form class="composer" id="task-form">
     <svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>
-    <input id="t-title" name="title" class="qa-title" maxlength="200" required placeholder="새로운 할 일 — 예) 운영체제 3장 복습" aria-label="할 일 제목" />
+    <input id="t-title" name="title" class="qa-title" maxlength="200" required placeholder="새 할 일 (예: 운영체제 3장 복습)" aria-label="할 일 제목" />
     <div class="qa-opts">
-      <input id="t-due" name="due_at" type="datetime-local" class="pill" aria-label="마감" />
-      <select id="t-priority" name="priority" class="pill" aria-label="우선순위"><option value="mid">보통</option><option value="high">높음</option><option value="low">낮음</option></select>
-      <select id="t-subject" name="subject_id" class="pill" aria-label="과목"><option value="">과목 없음</option>
-        <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %></select>
+      <div class="qa-due">
+        <label class="qa-label" for="t-due"><svg class="i sm" aria-hidden="true"><use href="#i-clock"/></svg>마감일</label>
+        <div class="due-quick" role="group" aria-label="마감 빠르게 고르기">
+          <button type="button" data-quick="today">오늘</button><button type="button" data-quick="tomorrow">내일</button><button type="button" data-quick="week">이번 주</button>
+        </div>
+        <input id="t-due" name="due_at" type="datetime-local" class="pill" />
+      </div>
+      <label class="qa-select"><svg class="i sm" aria-hidden="true"><use href="#i-flag"/></svg><span class="sr-only">우선순위</span>
+        <select id="t-priority" name="priority"><option value="mid">보통</option><option value="high">높음</option><option value="low">낮음</option></select></label>
+      <label class="qa-select"><svg class="i sm" aria-hidden="true"><use href="#i-book"/></svg><span class="sr-only">과목</span>
+        <select id="t-subject" name="subject_id"><option value="">과목 없음</option>
+          <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %></select></label>
       <button class="btn">추가</button>
     </div>
   </form>
+
+  <nav class="filter-chips board-filter" id="subject-filter" aria-label="과목 필터">
+    <button type="button" class="active" data-subject="" aria-pressed="true">모든 과목</button>
+    <% subjects.forEach((s) => { %><button type="button" data-subject="<%= s.subject_id %>" data-c style="--c: <%= s.color %>" aria-pressed="false"><%= s.name %></button><% }) %>
+  </nav>
 
   <div class="board">
     <section class="column" data-status="todo" aria-label="할 일"><div class="column-head"><span class="dot"></span><h3>할 일</h3><span class="count"></span></div><div class="cards"></div></section>
