@@ -285,3 +285,24 @@ The structural breakpoints that matter for agents: 1440px (content lock), 1068px
 - Dark-mode counterparts for store and accessories utility cards were not surfaced on the analyzed pages; the system documented is the daytime/light-dominant variant Apple ships by default.
 - Atmospheric photography (environment page mountain vista) is a content asset, not a design token; the documented `{component.environment-quote-card}` describes the structural surface only.
 - The exact backdrop-filter blur radius on `{component.sub-nav-frosted}` and `{component.floating-sticky-bar}` is platform-dependent; production CSS uses `saturate(180%) blur(20px)` as a typical baseline but the value isn't formalized as a token.
+
+
+//이거는 내가 getdesign.md 라는곳에서 애플 디자인 따온거고 그리고 figma로 만든건 너무 별로라 너무 알아서 디자인 작성해줘 교수님이 요구한 기술로 만들어야 겠지 당연히? 밑에는 교수님이 요구한 과제 방법이야 참고해 
+<!-- //기말고사 과제 - AI 바이브 코딩 발표 
+기한 일요일 오후 11:59까지 배점 40 제출 방식 파일 업로드 파일 유형 pdf 와(과) zip
+기말고사 과제 - AI 바이브 코딩 발표 
+
+기말고사는 시험없으며, 과제로 대체합니다.
+반드시 AWS EC2에 서버에 NODEJS + Express + EJS + MySQL2 를 사용한 APP이어야 합니다.
+반드시 데이터베이스를 사용해야 합니다.
+발표는 5분 ( 프로그램 화면 설명 + database ERD 설명 ) 
+평가: 학생들 평가 + 교수 평가 
+기준:
+1. 내가 주도적으로 무엇을 했는가 
+2. 독창성 
+3. 네이버 카페 수준이면 100점만점에 80점 정도이며, 내가 주도적으로 추가한 내용이 존재하면 추가점수를 받습니다. 
+제출방법 : 
+ AWS EC2에서 화면 UI 캡쳐 + DB ERD + github 저장소 캡쳐  -> 학번_이름.pdf 
+소스 압축하여 제출 -> 학번_이름_소스.zip 
+제출일 11/27일까지 
+발표일: 11/30 , 12/1, 12/2일 수업시간에 발표  -->
