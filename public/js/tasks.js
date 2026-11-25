@@ -31,11 +31,13 @@ function card(t) {
       ${t.subject_name ? chip(t.subject_name, t.subject_color, true) : ""}
       ${done ? (t.completed_at ? `<span class="due done">완료 ${md(t.completed_at)}</span>` : "") : t.due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}
       ${t.priority === "high" && !done ? `<span class="prio-high"><svg class="i sm" aria-hidden="true"><use href="#i-flag"/></svg>중요</span>` : ""}
-      ${src && !done ? `<span class="src" title="${src[1]}에서 추가"><svg class="i" aria-hidden="true"><use href="#i-${src[0]}"/></svg>${src[1]}</span>` : ""}
+      ${src && !done ? `<span class="src" title="${src[1]}에서 추가"><svg class="i" aria-hidden="true"><use href="#i-${src[0]}"/></svg><span class="src-label">${src[1]}에서 추가</span></span>` : ""}
     </div>
   </article>`;
 }
 
+const DONE_LIMIT = 5;
+let showAllDone = false;
 const EMPTY = { todo: "할 일이 없어요. 위에서 추가하거나 말로 남겨보세요", doing: "진행 중인 일이 없어요", done: "아직 완료한 할 일이 없어요" };
 
 function render() {
@@ -43,7 +45,13 @@ function render() {
   document.querySelectorAll(".column").forEach((col) => {
     const st = col.dataset.status;
     const list = shown.filter((t) => t.status === st);
-    col.querySelector(".cards").innerHTML = list.map(card).join("") || `<div class="empty-col">${EMPTY[st]}</div>`;
+    // 완료 열은 최근 5개만 보이고 나머지는 접는다 (열 길이 균형)
+    const cut = st === "done" && !showAllDone && list.length > DONE_LIMIT;
+    const visible = st === "done" ? [...list].sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || "")) : list;
+    col.querySelector(".cards").innerHTML =
+      (cut ? visible.slice(0, DONE_LIMIT) : visible).map(card).join("") +
+        (cut ? `<button type="button" class="more-done" data-more-done>완료 ${list.length - DONE_LIMIT}개 더 보기</button>` : "") ||
+      `<div class="empty-col">${EMPTY[st]}</div>`;
     col.querySelector(".count").textContent = list.length;
   });
   document.getElementById("total-count").textContent = `${shown.filter((t) => t.status !== "done").length}개 남음`;
@@ -61,6 +69,7 @@ board.addEventListener("click", async (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   b.closest("details")?.removeAttribute("open");
+  if (b.hasAttribute("data-more-done")) return (showAllDone = true), render();
   if (b.dataset.move) {
     const id = Number(b.dataset.move);
     const from = tasks.find((t) => t.task_id === id).status;

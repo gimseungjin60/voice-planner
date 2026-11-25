@@ -20,7 +20,7 @@
     </div>
   </div>
 
-  <div class="stat-grid">
+  <div class="stat-grid strip">
     <div class="stat"><p class="label">이번 주에 끝낸 일</p><p class="value"><%= report.done %></p>
       <p class="hint">완료한 날 기준 · 지난주 <%= report.lastDone %>개 · <span class="<%= diff > 0 ? 'up' : diff < 0 ? 'down' : '' %>" style="font-weight: 600; color: <%= diff > 0 ? 'var(--green-text)' : diff < 0 ? 'var(--red)' : 'inherit' %>"><%= diff > 0 ? `▲ ${diff}` : diff < 0 ? `▼ ${-diff}` : '같아요' %></span></p></div>
     <div class="stat"><p class="label">이번 주 마감 지킴</p><p class="value"><%= rate %>%</p><p class="hint">마감이 이번 주인 <%= total %>개 중 <%= doneDue %>개</p>
@@ -38,12 +38,18 @@
   <div class="grid-2 even">
     <section class="card">
       <div class="card-head"><h2>요일별로 끝낸 일</h2><span class="fine">완료한 날 기준</span></div>
+      <% if (!report.daily.some((n) => n > 0)) { %>
+        <div class="chart-empty">
+          <p class="title">이번 주는 아직 끝낸 일이 없어요</p>
+          <p>할 일을 하나 끝내면 요일별 막대가 여기에 쌓여요.<%= report.lastDone ? ` 지난주에는 ${report.lastDone}개를 끝냈어요.` : '' %></p>
+        </div>
+      <% } else { %>
       <div class="chart" aria-hidden="true">
         <div class="yaxis"><span><%= top %></span><span><%= top / 2 %></span><span>0</span></div>
         <% report.daily.forEach((n, i) => { const future = i > todayIdx; %>
           <div class="col <%= future ? 'future' : '' %> <%= i === todayIdx ? 'today' : '' %>" title="<%= DAYS[i] %>요일 · <%= future ? '아직 오지 않은 날' : n + '개 완료' %>">
             <span class="n"><%= future ? '–' : n %></span>
-            <span class="bar" style="height: <%= future ? 0 : (n / top) * 140 %>px"></span>
+            <span class="bar" style="height: <%= future ? 0 : (n / top) * 120 %>px"></span>
             <span class="x"><%= DAYS[i] %><% if (i === todayIdx) { %><small>오늘</small><% } %></span>
           </div>
         <% }) %>
@@ -52,6 +58,7 @@
         <% report.daily.forEach((n, i) => { %><tr><th><%= DAYS[i] %>요일</th><td><%= i > todayIdx ? '아직 오지 않음' : n + '개' %></td></tr><% }) %>
       </tbody></table>
       <p class="fine chart-note">–는 아직 오지 않은 날이에요.</p>
+      <% } %>
     </section>
 
     <section class="card">
@@ -72,12 +79,12 @@
     </section>
   </div>
 
-  <section class="card" style="margin-top: 20px">
-    <div class="card-head" style="margin-bottom: 0"><h2>이번 주 완료한 일</h2></div>
+  <section class="report-done">
+    <h2>이번 주 완료한 일 <span class="fine num"><%= report.completed.length %>개</span></h2>
     <% if (!report.completed.length) { %>
-      <div class="empty"><div class="empty-icon"><svg class="i"><use href="#i-chart"/></svg></div><p class="title">아직 완료한 일이 없어요</p><p class="desc">하나씩 끝내면 여기에 쌓여요.</p></div>
+      <p class="fine">아직 없어요. 하나씩 끝내면 여기에 쌓여요.</p>
     <% } else { %>
-      <div class="list">
+      <div class="list-card list">
         <% report.completed.forEach((t) => { %>
           <div class="row" style="min-height: 52px">
             <span class="check on" aria-hidden="true"></span>

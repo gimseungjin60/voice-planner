@@ -39,9 +39,18 @@ async function load() {
   $("n-status").innerHTML = n.connected
     ? `<span class="status-dot ok">연결됨</span><span class="num">토큰 ${esc(n.token_hint || "")}</span>`
     : `<span class="status-dot">연결 안 됨</span>`;
+  // 연결돼 있으면 입력 폼은 접고 [설정 바꾸기]로 연다. 처음 연결할 때만 3단계 안내 + 폼을 펼쳐 둔다
+  $("notion-form").classList.toggle("collapsed", !!n.connected);
   $("n-actions").innerHTML = n.connected
-    ? `<button type="button" class="btn line sm" id="n-export"><svg class="i sm" aria-hidden="true"><use href="#i-export"/></svg><span>이번 주 할 일 노션으로 내보내기</span></button>`
+    ? `<button type="button" class="btn text sm" id="n-edit" aria-expanded="false">설정 바꾸기</button>
+       <button type="button" class="btn line sm" id="n-export"><svg class="i sm" aria-hidden="true"><use href="#i-export"/></svg><span>이번 주 할 일 내보내기</span></button>`
     : "";
+  $("n-edit")?.addEventListener("click", (e) => {
+    const open = $("notion-form").classList.toggle("collapsed") === false;
+    e.currentTarget.setAttribute("aria-expanded", String(open));
+    e.currentTarget.textContent = open ? "접기" : "설정 바꾸기";
+    if (open) $("n-db").focus();
+  });
   $("n-token").placeholder = n.connected ? "새 토큰으로 바꿀 때만 입력" : "ntn_ 또는 secret_으로 시작하는 토큰";
   if (n.target_ref) $("n-db").value = n.target_ref;
   $("n-export")?.addEventListener("click", async (e) => {
