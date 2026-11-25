@@ -1,60 +1,78 @@
-// 받은 편지함: Gmail에서 AI가 찾은 과제 후보 → [할 일로] / [무시]
+// 받은 편지함: Gmail에서 AI가 찾은 과제 후보 → [+ 할 일로] / [무시]
 const list = document.getElementById("inbox-list");
+const syncBtn = document.getElementById("mail-sync");
 const subjectOptions = document.getElementById("subject-options").innerHTML;
 let status = "pending";
 
-const initial = (s) => (s || "?").replace(/["<].*/, "").trim().charAt(0).toUpperCase();
+// "박교수 <prof.park@…>" → 이름 / 주소 / 첫 글자
+function parseSender(s = "") {
+  const m = s.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>/);
+  const name = (m ? m[1] : s).trim() || s;
+  return { name, addr: m ? m[2] : "", initial: name.charAt(0).toUpperCase() || "?" };
+}
+
+// 받은 시각: 오늘 09:12 / 어제 17:40 / 11/20 09:12
+function received(v) {
+  if (!v) return "";
+  const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() + 9 * 3600000 - 86400000).toISOString().slice(0, 10);
+  const day = v.slice(0, 10);
+  return `${day === today ? "오늘" : day === yesterday ? "어제" : md(v)} ${v.slice(11, 16)}`;
+}
 
 function itemHtml(it) {
-  const settled = it.status !== "pending";
   const { label, cls } = dueInfo(it.ai_due_at);
   const due = it.ai_due_at ? it.ai_due_at.replace(" ", "T").slice(0, 16) : "";
-  const recv = it.received_at ? `${Number(it.received_at.slice(5, 7))}/${Number(it.received_at.slice(8, 10))} ${it.received_at.slice(11, 16)}` : "";
-  const found = settled
-    ? `<div class="found-label"><svg class="i"><use href="#i-sparkles"/></svg>AI가 찾은 할 일</div>
-       <div class="row-title" style="font-weight: 600">${esc(it.ai_title)}</div>
-       <div class="found-meta">${chip(it.subject_name, it.subject_color)}<span class="due">${esc(label)}</span></div>`
-    : `<div class="found-label"><svg class="i"><use href="#i-sparkles"/></svg>AI가 찾은 할 일 · 고쳐서 추가할 수 있어요</div>
-       <input class="f-title" value="${esc(it.ai_title)}" maxlength="200" aria-label="할 일 제목" />
-       <div class="found-meta">
-         <input class="f-due" type="datetime-local" value="${due}" aria-label="마감" />
-         <select class="f-subject" aria-label="과목">${subjectOptions}</select>
-         <span class="due ${cls}">${it.ai_due_at ? esc(dueInfo(it.ai_due_at).short) : ""}</span>
-       </div>`;
-  const actions =
-    it.status === "pending"
-      ? `<button class="btn gray sm" data-ignore="${it.item_id}">무시</button><button class="btn sm" data-accept="${it.item_id}"><svg class="i sm"><use href="#i-plus"/></svg>할 일로</button>`
-      : it.status === "accepted"
-        ? `<span class="grow"><span class="badge green"><svg class="i"><use href="#i-check"/></svg>할 일에 추가됨</span></span><a class="btn plain sm" href="/tasks">보드에서 보기</a>`
-        : `<span class="grow"><span class="badge">무시함</span></span>`;
-  return `<article class="mail-card${settled ? " settled" : ""}" data-id="${it.item_id}">
-    <div class="mail-head"><span class="avatar">${esc(initial(it.sender))}</span><span class="mail-from">${esc(it.sender)}</span><span class="fine">${recv}</span></div>
+  const from = parseSender(it.sender);
+  let body;
+  if (it.status === "pending")
+    body = `<div class="found">
+        <div class="found-label">AI가 찾은 할 일 · 고쳐서 추가할 수 있어요${it.ai_due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}</div>
+        <div class="found-meta">
+          <input class="f-title" value="${esc(it.ai_title)}" maxlength="200" aria-label="할 일 제목" />
+          <input class="f-due pill" type="datetime-local" value="${due}" aria-label="마감" />
+          <select class="f-subject pill" aria-label="과목">${subjectOptions}</select>
+        </div>
+        <div class="mail-actions">
+          <button class="btn line" data-ignore="${it.item_id}">무시</button>
+          <button class="btn" data-accept="${it.item_id}"><svg class="i sm" aria-hidden="true"><use href="#i-plus"/></svg>할 일로</button>
+        </div></div>`;
+  else if (it.status === "accepted")
+    body = `<div class="added-line"><svg class="i sm" aria-hidden="true"><use href="#i-check"/></svg>할 일에 추가됨
+        <span class="grow">· ${esc(it.ai_title)}${it.ai_due_at ? ` · ${esc(label)}` : ""}</span><a class="link" href="/tasks">할 일 보기</a></div>`;
+  else body = `<p class="fine" style="margin-top: 12px">무시한 후보예요. AI가 찾은 할 일: ${esc(it.ai_title)}</p>`;
+  return `<article class="mail-card${it.status !== "pending" ? ` settled ${it.status}` : ""}" data-id="${it.item_id}">
+    <div class="mail-head">
+      <span class="avatar" style="${it.subject_color ? `--c:${esc(it.subject_color)}` : ""}" aria-hidden="true">${esc(from.initial)}</span>
+      <div class="grow"><div class="mail-from">${esc(from.name)}${from.addr ? `<small>&lt;${esc(from.addr)}&gt;</small>` : ""}</div>
+      <div class="mail-time">${received(it.received_at)}</div></div>
+    </div>
     <div class="mail-subject">${esc(it.subject)}</div>
-    <div class="found">${found}</div>
-    <div class="mail-actions">${actions}</div></article>`;
+    ${it.snippet ? `<div class="mail-preview">${esc(it.snippet)}</div>` : ""}
+    ${body}</article>`;
 }
 
 const EMPTY = {
-  pending: ["check", "새로 찾은 과제가 없어요", "메일 확인을 누르면 최근 7일 메일을 다시 살펴봐요"],
-  accepted: ["checklist", "아직 추가한 후보가 없어요", ""],
-  ignored: ["x", "무시한 후보가 없어요", ""],
+  pending: ["새 과제 후보가 없어요", "새 메일이 오면 AI가 과제·시험·마감을 찾아 여기에 모아 둘게요."],
+  accepted: ["아직 추가한 후보가 없어요", "새 후보에서 [할 일로]를 누르면 여기에 모여요."],
+  ignored: ["무시한 후보가 없어요", ""],
 };
 
 async function load() {
   const r = await api(`/api/inbox?status=${status}`, { quiet: true });
   if (!r.ok || !r.data.connected) {
-    list.innerHTML = `<div class="card empty"><div class="empty-icon"><svg class="i"><use href="#i-mail"/></svg></div>
-      <strong>구글 계정을 연결해 주세요</strong>연결하면 학교 메일에서 과제·마감을 자동으로 찾아줘요
-      <div><a class="btn" href="/settings"><svg class="i"><use href="#i-link"/></svg>연동 설정으로</a></div></div>`;
-    document.getElementById("mail-sync").disabled = true;
+    list.innerHTML = `<div class="card empty"><div class="empty-icon blue"><svg class="i"><use href="#i-mail"/></svg></div>
+      <p class="title">구글 계정을 연결해 주세요</p><p class="desc">연결하면 학교 메일에서 과제·마감을 자동으로 찾아줘요.</p>
+      <a class="btn" href="/settings">연동 설정으로</a></div>`;
+    syncBtn.disabled = true;
     return;
   }
   const { items, counts, last_synced_at } = r.data;
   document.getElementById("last-sync").textContent = `마지막 확인 ${ago(last_synced_at)}`;
-  document.querySelectorAll("[data-n]").forEach((el) => (el.textContent = counts[el.dataset.n] || ""));
+  document.querySelectorAll("[data-n]").forEach((el) => (el.textContent = counts[el.dataset.n] ?? 0));
   if (!items.length) {
-    const [icon, title, text] = EMPTY[status];
-    list.innerHTML = `<div class="card empty"><div class="empty-icon"><svg class="i"><use href="#i-${icon}"/></svg></div><strong>${title}</strong>${text}</div>`;
+    const [title, desc] = EMPTY[status];
+    list.innerHTML = `<div class="empty-col" style="padding: 40px 24px"><p class="title" style="color: var(--ink); font-size: 15px; font-weight: 600">${title}</p>${desc ? `<p>${desc}</p>` : ""}</div>`;
     return;
   }
   list.innerHTML = items.map(itemHtml).join("");
@@ -76,14 +94,15 @@ list.addEventListener("click", async (e) => {
     };
     b.classList.add("loading");
     const r = await api(`/api/inbox/${b.dataset.accept}/accept`, { method: "POST", body });
-    if (r.ok) toast("할 일에 추가했어요");
+    b.classList.remove("loading");
+    if (!r.ok) return;
+    toast("할 일에 추가했어요", { action: { label: "할 일 보기", onClick: () => (location.href = "/tasks") } });
   } else if (b.dataset.ignore) {
     const r = await api(`/api/inbox/${b.dataset.ignore}/ignore`, { method: "POST" });
-    if (r.ok) toast("무시했어요");
+    if (!r.ok) return;
+    toast("무시했어요");
   } else return;
-  cardEl.style.transition = "opacity .25s, transform .25s";
   cardEl.style.opacity = "0";
-  cardEl.style.transform = "scale(.97)";
   setTimeout(load, 220);
 });
 
@@ -98,12 +117,13 @@ document.getElementById("inbox-filter").addEventListener("click", (e) => {
   load();
 });
 
-document.getElementById("mail-sync").addEventListener("click", async (e) => {
-  const b = e.currentTarget;
-  b.classList.add("loading");
+syncBtn.addEventListener("click", async () => {
+  syncBtn.classList.add("loading");
+  syncBtn.querySelector("span").textContent = "확인 중…";
   const r = await api("/api/sync/gmail", { method: "POST" });
-  b.classList.remove("loading");
-  if (r.ok) toast(r.data.found ? `새 과제 후보 ${r.data.found}개를 찾았어요` : "새로 찾은 과제가 없어요");
+  syncBtn.classList.remove("loading");
+  syncBtn.querySelector("span").textContent = "메일 확인";
+  if (r.ok) toast(r.data.found ? `새 과제 후보 ${r.data.found}개를 찾았어요` : "새로 찾은 과제가 없어요", { type: "sync" });
   load();
 });
 

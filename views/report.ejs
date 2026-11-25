@@ -1,64 +1,82 @@
 <%- include('partials/header') %>
 <% const md = (v) => `${Number(v.slice(5, 7))}/${Number(v.slice(8, 10))}`;
+   const DAYS = '월화수목금토일';
    const diff = report.done - report.lastDone;
-   const max = Math.max(1, ...report.daily);
    const total = report.bySubject.reduce((a, x) => a + x.total, 0);
-   const doneDue = report.bySubject.reduce((a, x) => a + x.done, 0); %>
-<header class="subnav">
-  <div class="subnav-inner">
-    <h1 class="subnav-title">주간 리포트 <span class="count"><%= md(report.from) %> ~ <%= md(report.to) %></span></h1>
+   const doneDue = report.bySubject.reduce((a, x) => a + x.done, 0);
+   const rate = total ? Math.round((doneDue / total) * 100) : 0;
+   const best = Math.max(...report.daily);
+   // 오늘이 이번 주 몇 번째 날인지 (한국 시간). 아직 안 온 날은 "–"
+   const todayYmd = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+   const todayIdx = Math.round((Date.parse(todayYmd) - Date.parse(report.from.slice(0, 10))) / 86400000);
+   const top = Math.max(2, Math.ceil(best / 2) * 2); // 눈금 0 · top/2 · top %>
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>주간 리포트 <span class="sub num">· <%= md(report.from) %> ~ <%= md(report.to) %></span></h1>
+      <p>이번 주(월~일)에 얼마나 해냈는지 돌아봐요.<%= todayIdx === 0 ? ' 월요일이라 아직 시작이에요.' : '' %></p>
+    </div>
   </div>
-</header>
 
-<main class="container stack">
   <div class="stat-grid">
-    <div class="stat-card"><p class="label">이번 주 완료</p><p class="value"><%= report.done %></p>
-      <p class="fine <%= diff > 0 ? 'up' : diff < 0 ? 'down' : '' %>">지난주 <%= report.lastDone %>개 · <%= diff > 0 ? `▲ ${diff}` : diff < 0 ? `▼ ${-diff}` : '같음' %></p></div>
-    <div class="stat-card"><p class="label">이번 주 마감 달성</p><p class="value"><%= total ? Math.round((doneDue / total) * 100) : 0 %>%</p><p class="fine"><%= total %>개 중 <%= doneDue %>개 완료</p></div>
-    <div class="stat-card"><p class="label">지난 마감</p><p class="value <%= report.overdue ? 'red' : '' %>"><%= report.overdue %></p><p class="fine">아직 못 끝낸 것</p></div>
-    <div class="stat-card"><p class="label">가장 열심히 한 날</p><p class="value"><%= report.done ? '월화수목금토일'[report.daily.indexOf(Math.max(...report.daily))] + '요일' : '-' %></p><p class="fine">완료 기준</p></div>
+    <div class="stat"><p class="label">이번 주 완료</p><p class="value"><%= report.done %></p>
+      <p class="hint">지난주 <%= report.lastDone %>개 · <span class="<%= diff > 0 ? 'up' : diff < 0 ? 'down' : '' %>" style="font-weight: 600; color: <%= diff > 0 ? 'var(--green-text)' : diff < 0 ? 'var(--red)' : 'inherit' %>"><%= diff > 0 ? `▲ ${diff}` : diff < 0 ? `▼ ${-diff}` : '같아요' %></span></p></div>
+    <div class="stat"><p class="label">이번 주 마감 달성</p><p class="value"><%= rate %>%</p><p class="hint"><%= total %>개 중 <%= doneDue %>개 완료</p>
+      <div class="meter" role="img" aria-label="마감 달성 <%= rate %>%"><span style="width: <%= rate %>%"></span></div></div>
+    <div class="stat"><p class="label">지난 마감</p><p class="value <%= report.overdue ? 'red' : '' %>"><%= report.overdue %></p>
+      <% if (report.overdue) { %><p class="hint down"><%= report.overdue %>개가 밀렸어요</p>
+      <% } else { %><p class="hint up"><svg class="i sm" aria-hidden="true"><use href="#i-check"/></svg> 밀린 마감이 없어요</p><% } %></div>
+    <div class="stat"><p class="label">가장 열심히 한 날</p><p class="value"><%= best ? DAYS[report.daily.indexOf(best)] + '요일' : '–' %></p><p class="hint"><%= best ? best + '개 완료' : '아직 없어요' %></p></div>
   </div>
 
-  <div class="grid-2">
+  <div class="grid-2 even">
     <section class="card">
-      <div class="card-title">요일별 완료</div>
-      <div class="bars" role="img" aria-label="요일별 완료 개수">
-        <% report.daily.forEach((n, i) => { %>
-          <div class="bar"><span class="bar-n"><%= n || '' %></span><span class="bar-fill" style="height: <%= (n / max) * 100 %>%"></span><span class="bar-x"><%= '월화수목금토일'[i] %></span></div>
+      <div class="card-head"><h2>요일별 완료</h2><span class="fine">막대에 올리면 자세히 보여요</span></div>
+      <div class="chart" aria-hidden="true">
+        <div class="yaxis"><span><%= top %></span><span><%= top / 2 %></span><span>0</span></div>
+        <% report.daily.forEach((n, i) => { const future = i > todayIdx; %>
+          <div class="col <%= future ? 'future' : '' %> <%= i === todayIdx ? 'today' : '' %>" title="<%= DAYS[i] %>요일 · <%= future ? '아직 오지 않은 날' : n + '개 완료' %>">
+            <span class="n"><%= future ? '–' : n %></span>
+            <span class="bar" style="height: <%= future ? 0 : (n / top) * 170 %>px"></span>
+            <span class="x"><%= DAYS[i] %><% if (i === todayIdx) { %><small>오늘</small><% } %></span>
+          </div>
         <% }) %>
       </div>
+      <table class="sr-only"><caption>요일별 완료 개수</caption><tbody>
+        <% report.daily.forEach((n, i) => { %><tr><th><%= DAYS[i] %>요일</th><td><%= i > todayIdx ? '아직 오지 않음' : n + '개' %></td></tr><% }) %>
+      </tbody></table>
+      <p class="fine chart-note">–는 아직 오지 않은 날이에요.</p>
     </section>
 
     <section class="card">
-      <div class="card-title">과목별 마감 달성</div>
+      <div class="card-head"><h2>과목별 마감 달성</h2><span class="fine">이번 주 마감 기준</span></div>
       <% if (!report.bySubject.length) { %>
-        <p class="fine">이번 주 마감인 할 일이 없어요</p>
+        <div class="empty"><div class="empty-icon"><svg class="i"><use href="#i-chart"/></svg></div><p class="title">이번 주 마감인 할 일이 없어요</p></div>
       <% } else { %>
         <ul class="subj-progress">
-          <% report.bySubject.forEach((x) => { %>
-            <li style="--c: <%= x.color || '#8e8e93' %>">
-              <div class="sp-head"><span><%= x.name || '과목 없음' %></span><span class="fine"><%= x.done %>/<%= x.total %></span></div>
-              <div class="progress"><span style="width: <%= Math.round((x.done / x.total) * 100) %>%"></span></div>
+          <% report.bySubject.forEach((x) => { const p = Math.round((x.done / x.total) * 100); %>
+            <li style="--c: <%= x.color || 'var(--gray-dot)' %>">
+              <div class="sp-head"><span class="grow"><%= x.name || '과목 없음' %></span><b class="num"><%= x.done %>/<%= x.total %></b><span class="pct"><%= p %>%</span></div>
+              <div class="meter" role="img" aria-label="<%= x.name || '과목 없음' %> <%= p %>%"><span style="width: <%= p %>%"></span></div>
             </li>
           <% }) %>
         </ul>
+        <p class="fine" style="margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line-3)">합계 <b class="num" style="color: var(--ink)"><%= doneDue %>/<%= total %></b> · 남은 마감 <%= total - doneDue %>개</p>
       <% } %>
     </section>
   </div>
 
-  <section>
-    <p class="section-label">이번 주 완료한 일</p>
+  <section class="card" style="margin-top: 20px">
+    <div class="card-head" style="margin-bottom: 0"><h2>이번 주 완료한 일</h2></div>
     <% if (!report.completed.length) { %>
-      <div class="card empty"><div class="empty-icon"><svg class="i"><use href="#i-check"/></svg></div><strong>아직 완료한 일이 없어요</strong>하나씩 끝내면 여기에 쌓여요</div>
+      <div class="empty"><div class="empty-icon"><svg class="i"><use href="#i-chart"/></svg></div><p class="title">아직 완료한 일이 없어요</p><p class="desc">하나씩 끝내면 여기에 쌓여요.</p></div>
     <% } else { %>
-      <div class="group">
+      <div class="list">
         <% report.completed.forEach((t) => { %>
-          <div class="row">
-            <span class="icon-tile green"><svg class="i"><use href="#i-check"/></svg></span>
-            <div class="row-main">
-              <div class="row-title"><%= t.title %></div>
-              <div class="row-sub"><%= t.subject_name || '과목 없음' %> · <%= md(t.completed_at) %> <%= t.completed_at.slice(11, 16) %> 완료</div>
-            </div>
+          <div class="row" style="min-height: 52px">
+            <span class="check on" aria-hidden="true"></span>
+            <div class="row-main"><div class="row-title"><%= t.title %></div></div>
+            <span class="fine num"><%= t.subject_name || '과목 없음' %> · <%= md(t.completed_at) %> <%= t.completed_at.slice(11, 16) %> 완료</span>
           </div>
         <% }) %>
       </div>

@@ -1,31 +1,29 @@
 <%- include('partials/header') %>
-<header class="subnav">
-  <div class="subnav-inner">
-    <h1 class="subnav-title">받은 편지함</h1>
-    <div class="subnav-actions">
+<main class="container narrow">
+  <div class="page-head" style="align-items: center">
+    <h1>받은 편지함</h1>
+    <div class="actions">
       <span class="fine" id="last-sync"></span>
-      <button class="btn sm secondary" id="mail-sync"><svg class="i sm"><use href="#i-sync"/></svg>메일 확인</button>
+      <button class="btn line" id="mail-sync"><svg class="i sm" aria-hidden="true"><use href="#i-sync"/></svg><span>메일 확인</span></button>
     </div>
   </div>
-</header>
 
-<main class="container narrow">
-  <div class="page-intro">
-    <h2>메일에서 찾은 과제</h2>
-    <p>학교 메일에서 과제·시험·마감을 AI가 찾아 모았어요. 확인하고 할 일로 옮기세요.</p>
+  <div class="banner" style="align-items: flex-start; padding: 16px 18px; margin-bottom: 20px">
+    <svg class="i" aria-hidden="true" style="margin-top: 2px"><use href="#i-mail"/></svg>
+    <div><b>메일에서 찾은 과제</b><p>학교 메일에서 과제·시험·마감을 AI가 찾아 모았어요. 확인하고 할 일로 옮기세요.</p></div>
   </div>
 
-  <div class="seg" role="tablist" id="inbox-filter" style="margin-bottom: 18px">
-    <button class="active" data-status="pending" role="tab" aria-selected="true">새 후보 <span class="n" data-n="pending"></span></button>
-    <button data-status="accepted" role="tab" aria-selected="false">추가함 <span class="n" data-n="accepted"></span></button>
-    <button data-status="ignored" role="tab" aria-selected="false">무시함 <span class="n" data-n="ignored"></span></button>
+  <div class="tabs" role="tablist" id="inbox-filter" aria-label="후보 상태">
+    <button class="active" data-status="pending" role="tab" aria-selected="true">새 후보<span class="n" data-n="pending"></span></button>
+    <button data-status="accepted" role="tab" aria-selected="false">추가함<span class="n" data-n="accepted"></span></button>
+    <button data-status="ignored" role="tab" aria-selected="false">무시함<span class="n" data-n="ignored"></span></button>
   </div>
 
   <div id="inbox-list" aria-live="polite">
-    <div class="card"><span class="skel" style="width: 40%"></span><span class="skel" style="width: 80%"></span><span class="skel" style="width: 60%"></span></div>
+    <div class="mail-card"><span class="skel" style="width: 40%"></span><span class="skel" style="width: 80%"></span><span class="skel" style="width: 60%"></span></div>
   </div>
 
-  <p class="fine" style="margin-top: 20px; text-align: center"><svg class="i sm"><use href="#i-shield"/></svg> 메일 본문은 저장하지 않아요. 제목·보낸 사람·미리보기만 분석해요.</p>
+  <p class="lock-note"><svg class="i sm" aria-hidden="true"><use href="#i-lock"/></svg>메일 본문은 저장하지 않아요. 제목·보낸 사람·미리보기만 분석해요.</p>
 </main>
 
 <template id="subject-options"><option value="">과목 없음</option><% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %></template>

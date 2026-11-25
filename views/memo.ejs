@@ -1,75 +1,92 @@
 <%- include('partials/header') %>
-<header class="subnav">
-  <div class="subnav-inner">
-    <h1 class="subnav-title">음성 메모</h1>
-    <div class="subnav-actions">
-      <div class="seg" role="tablist" aria-label="메모 종류">
-        <button class="active" data-type="memo" role="tab" aria-selected="true"><svg class="i sm"><use href="#i-note"/></svg>짧은 메모</button>
-        <button data-type="lecture" role="tab" aria-selected="false"><svg class="i sm"><use href="#i-wave"/></svg>강의 녹음</button>
-      </div>
+<main class="container" id="memo-page">
+  <div class="page-head">
+    <div>
+      <h1>음성 메모</h1>
+      <p id="memo-desc">떠오른 할 일을 말로 남기면 AI가 할 일 후보로 정리해 드려요.</p>
+    </div>
+    <div class="seg" aria-label="메모 종류">
+      <button class="active" data-type="memo" aria-pressed="true">짧은 메모</button>
+      <button data-type="lecture" aria-pressed="false">강의 녹음</button>
     </div>
   </div>
-</header>
 
-<main class="container narrow stack">
-  <section class="card flush">
-    <div class="recorder" id="mic-area">
-      <button class="mic idle-pulse" id="mic-btn" aria-label="녹음 시작"><svg class="i"><use href="#i-mic"/></svg></button>
-      <div class="rec-status" id="rec-status">
-        <span class="wave hidden" id="wave"><span></span><span></span><span></span><span></span><span></span></span>
-        <span class="timer hidden" id="timer">00:00</span>
-        <span id="mic-status">버튼을 누르고 말하세요</span>
+  <div class="memo-grid">
+    <div class="memo-side">
+      <section class="recorder" id="mic-area" aria-label="녹음">
+        <button class="mic" id="mic-btn" aria-label="녹음 시작"><svg class="i"><use href="#i-mic"/></svg></button>
+        <div class="rec-status" id="rec-status">
+          <span class="wave hidden" id="wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>
+          <span class="timer hidden" id="timer">00:00</span>
+          <span id="mic-status" aria-live="polite">버튼을 누르고 말하세요</span>
+          <span id="mic-sub">말하는 동안 오른쪽에 글자가 바로 적혀요</span>
+        </div>
+        <ol class="seg-list" id="seg-list" aria-label="받아쓰기 조각"></ol>
+      </section>
+      <div class="banner warn hidden" id="no-stt">
+        <svg class="i" aria-hidden="true"><use href="#i-warn"/></svg>
+        <span class="grow">이 브라우저는 음성 인식을 지원하지 않아요. 오른쪽에 직접 입력하세요. (Chrome·Edge 권장)</span>
+      </div>
+      <div class="tips">
+        <b>이렇게 말하면 더 잘 알아들어요</b>
+        <ul>
+          <li>‘다음 주 화요일까지’처럼 말해도 정확한 날짜로 바꿔요</li>
+          <li>과목 이름을 말하면 과목을 자동으로 골라요</li>
+          <li>‘그리고’로 이어 말하면 할 일을 나눠 담아요</li>
+        </ul>
       </div>
     </div>
-    <div class="banner hidden" id="no-stt" style="margin: 20px 24px 0">
-      <svg class="i"><use href="#i-alert"/></svg>
-      <span class="grow">이 브라우저는 음성 인식을 지원하지 않아요. 아래에 직접 입력하세요. (Chrome·Edge 권장)</span>
-    </div>
-    <div class="live">
-      <label for="transcript" class="sr-only">인식된 내용</label>
-      <textarea id="transcript" placeholder="데이터베이스 교수님이 다음 주 화요일까지 ERD 과제 내래"></textarea>
-      <div class="interim" id="interim" aria-live="polite"></div>
-      <div class="live-foot">
-        <span class="fine" id="type-help">말한 내용이 실시간으로 찍혀요. 틀린 글자는 바로 고칠 수 있어요</span>
-        <button class="btn" id="analyze-btn"><svg class="i"><use href="#i-sparkles"/></svg><span>AI로 정리하기</span></button>
-      </div>
-      <div class="error-msg" id="memo-error" role="alert"></div>
-    </div>
-  </section>
 
-  <section class="card hidden" id="result" aria-live="polite">
-    <div class="result-head">
-      <span class="icon-tile"><svg class="i"><use href="#i-sparkles"/></svg></span>
-      <h3>AI 요약</h3>
-    </div>
-    <div class="summary ai" id="summary"></div>
+    <div>
+      <section class="card live" aria-labelledby="live-title">
+        <div class="card-head" style="margin-bottom: 8px">
+          <h2 id="live-title" style="font-size: 16px">받아쓴 내용</h2>
+          <span class="fine" id="type-help">직접 고쳐 쓸 수 있어요</span>
+        </div>
+        <textarea id="transcript" aria-labelledby="live-title" placeholder="데이터베이스 교수님이 다음 주 화요일까지 ERD 과제 내래"></textarea>
+        <div class="interim" id="interim" aria-live="polite"></div>
+        <div class="live-foot">
+          <span class="fine num" id="char-count">0자</span>
+          <button class="btn" id="analyze-btn" disabled><svg class="i" aria-hidden="true"><use href="#i-sort"/></svg><span>AI로 정리하기</span></button>
+        </div>
+        <div class="error-msg" id="memo-error" role="alert"></div>
+      </section>
 
-    <div id="cand-wrap" style="margin-top: 28px">
-      <div class="section-head" style="margin-left: 0">
-        <h3>할 일 후보</h3>
-        <span class="fine">저장할 것만 체크하세요 · 내용은 바로 고칠 수 있어요</span>
-      </div>
-      <div class="group" id="candidates"></div>
-      <div class="live-foot">
-        <a id="memo-link" href="/memos" class="caption">저장된 메모 보기 →</a>
-        <button class="btn" id="confirm-btn"><svg class="i"><use href="#i-check"/></svg><span>할 일로 저장</span></button>
-      </div>
+      <section class="card result hidden" id="result" aria-live="polite">
+        <div class="summary-line"><span class="badge ai">AI 요약</span><div class="summary" id="summary"></div></div>
+        <div id="lecture-body"></div>
+
+        <div id="cand-wrap">
+          <div class="cand-head"><h3 id="cand-title">할 일 후보</h3><span class="fine">체크한 것만 할 일로 저장돼요</span></div>
+          <div id="candidates"></div>
+          <div class="live-foot" style="border: 0; padding-top: 4px">
+            <a id="memo-link" href="/memos" class="link">저장된 메모 보기</a>
+            <button class="btn" id="confirm-btn"><span>할 일로 저장</span></button>
+          </div>
+        </div>
+        <div class="empty hidden" id="no-cand">
+          <div class="empty-icon"><svg class="i"><use href="#i-sort"/></svg></div>
+          <p class="title">할 일 후보를 찾지 못했어요</p>
+          <p class="desc">메모는 저장했어요. 마감이나 과제 이름을 함께 말하면 더 잘 찾아요.</p>
+        </div>
+        <div class="live-foot hidden" id="lecture-foot">
+          <a id="memo-link-2" href="/memos" class="link">저장된 메모 보기</a>
+          <span class="fine" id="lecture-meta">자동 저장됨</span>
+        </div>
+      </section>
     </div>
-    <p id="lecture-foot" class="live-foot hidden"><a id="memo-link-2" href="/memos" class="caption">저장된 메모 보기 →</a></p>
-  </section>
+  </div>
 </main>
 
 <template id="cand-tpl">
   <div class="candidate">
     <input type="checkbox" class="check" checked aria-label="저장할 할 일 선택" />
-    <div>
-      <input class="c-title" maxlength="200" aria-label="할 일 제목" />
-      <div class="candidate-meta">
-        <input class="c-due" type="datetime-local" aria-label="마감" />
-        <select class="c-priority" aria-label="우선순위"><option value="high">우선순위 높음</option><option value="mid">우선순위 보통</option><option value="low">우선순위 낮음</option></select>
-        <select class="c-subject" aria-label="과목"><option value="">과목 없음</option>
-          <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %></select>
-      </div>
+    <input class="c-title" maxlength="200" aria-label="할 일 제목" style="margin-left: 0" />
+    <div class="candidate-meta">
+      <input class="c-due pill" type="datetime-local" aria-label="마감" />
+      <select class="c-priority pill" aria-label="우선순위"><option value="high">높음</option><option value="mid">보통</option><option value="low">낮음</option></select>
+      <select class="c-subject pill" aria-label="과목"><option value="">과목 없음</option>
+        <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %></select>
     </div>
   </div>
 </template>

@@ -1,19 +1,26 @@
-<%# 음성 비서: 모든 화면 오른쪽 아래 플로팅. 동작은 public/js/assistant.js %>
-<button class="fab" id="assist-fab" aria-label="음성 비서 열기" aria-expanded="false">
-  <svg class="i"><use href="#i-sparkles"/></svg><span>비서에게 말하기</span>
+<%# 음성 비서: 모든 화면 오른쪽 아래. 동작은 public/js/assistant.js %>
+<button class="fab" id="assist-fab" aria-expanded="false" aria-controls="assist">
+  <span class="fab-icon"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span>비서에게 말하기
 </button>
-<section class="assist hidden" id="assist" role="dialog" aria-label="음성 비서">
+<section class="assist hidden" id="assist" role="dialog" aria-labelledby="assist-title">
   <div class="assist-head">
-    <b><svg class="i"><use href="#i-sparkles"/></svg>음성 비서</b>
-    <button class="btn plain icon sm" id="assist-speak-stop" title="읽기 멈춤" aria-label="읽기 멈춤" hidden><svg class="i sm"><use href="#i-speaker"/></svg></button>
-    <button class="btn gray icon sm" id="assist-close" aria-label="닫기"><svg class="i sm"><use href="#i-x"/></svg></button>
+    <span class="logo" aria-hidden="true"><i></i><i></i><i></i></span>
+    <div class="grow">
+      <b id="assist-title">음성 비서</b>
+      <span class="status-dot ok" id="assist-state">말하거나 입력하세요</span>
+    </div>
+    <button class="icon-btn" id="assist-speak-stop" aria-label="읽기 멈춤" hidden><svg class="i"><use href="#i-speaker"/></svg></button>
+    <button class="icon-btn" id="assist-close" aria-label="닫기"><svg class="i"><use href="#i-x"/></svg></button>
   </div>
-  <div class="assist-suggest" id="assist-suggest">
-    <button data-say="내일 오후 3시에 캡스톤 조 회의 잡아줘">회의 잡아줘</button>
-    <button data-say="이번 주 마감 알려줘">이번 주 마감</button>
-    <button data-say="오늘 수업 뭐 있어?">오늘 수업</button>
+  <div class="assist-body" id="assist-body">
+    <div class="bubble bot">무엇을 도와드릴까요? 일정 추가, 마감 확인, 할 일 완료를 말로 해보세요.</div>
+    <div class="assist-suggest" id="assist-suggest">
+      <button data-say="내일 오후 3시에 캡스톤 조 회의 잡아줘">“내일 오후 3시에 캡스톤 조 회의 잡아줘”</button>
+      <button data-say="이번 주 마감 알려줘">“이번 주 마감 알려줘”</button>
+      <button data-say="오늘 수업 뭐 있어?">“오늘 수업 뭐 있어?”</button>
+    </div>
+    <div class="assist-log" id="assist-log" aria-live="polite"></div>
   </div>
-  <div class="assist-log" id="assist-log" aria-live="polite"></div>
   <form class="assist-bar" id="assist-form">
     <input id="assist-input" placeholder="말하거나 입력하세요" autocomplete="off" aria-label="비서에게 할 말" />
     <button type="button" class="assist-mic" id="assist-mic" aria-label="말하기"><svg class="i"><use href="#i-mic"/></svg></button>

@@ -3,77 +3,85 @@
    const [y, m, d] = today.slice(0, 10).split("-").map(Number);
    const dow = WEEK[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
    const hour = Number(today.slice(11, 13));
-   const greet = hour < 6 ? "늦은 밤이에요" : hour < 12 ? "좋은 아침이에요" : hour < 18 ? "좋은 오후예요" : "오늘 하루 수고했어요"; %>
+   const greet = hour < 6 ? "늦은 밤이에요" : hour < 12 ? "좋은 아침이에요" : hour < 18 ? "좋은 오후예요" : "오늘 하루 수고했어요";
+   // 이번 주 월~금 범위 (시간표 제목 옆)
+   const mon = new Date(Date.UTC(y, m - 1, d) - ((new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7) * 86400000);
+   const fri = new Date(mon.getTime() + 4 * 86400000);
+   const mdOf = (t) => `${t.getUTCMonth() + 1}/${t.getUTCDate()}`; %>
 
-<section class="hero" aria-labelledby="hero-date">
-  <p class="hero-eyebrow"><%= user.user_name %>님, <%= greet %></p>
-  <h1 class="hero-title" id="hero-date"><%= m %>월 <%= d %>일 <%= dow %>요일</h1>
-  <p class="hero-lead" id="hero-lead">오늘 수업 <b><%= classes.length %>개</b><span id="hero-due"></span></p>
-  <div class="hero-cta">
-    <button class="btn" id="briefing-btn"><svg class="i"><use href="#i-speaker"/></svg><span>브리핑 듣기</span></button>
-    <button class="btn secondary on-dark" id="sync-btn"><svg class="i"><use href="#i-sync"/></svg><span>동기화</span></button>
+<main class="container">
+  <div class="dash-top">
+    <section class="today" aria-labelledby="hero-date">
+      <p class="greet"><%= user.user_name %>님, <%= greet %></p>
+      <h1 id="hero-date"><%= m %>월 <%= d %>일 <%= dow %>요일</h1>
+      <p class="lead" id="hero-lead">오늘 수업 <b><%= classes.length %>개</b><span id="hero-due"></span></p>
+      <div class="today-actions">
+        <button class="btn line" id="briefing-btn"><svg class="i" aria-hidden="true"><use href="#i-speaker"/></svg><span>브리핑 듣기</span></button>
+        <button class="btn line" id="sync-btn"><svg class="i" aria-hidden="true"><use href="#i-sync"/></svg><span>동기화</span></button>
+        <span class="fine" id="sync-note">구글 캘린더·메일</span>
+      </div>
+      <p class="briefing hidden" id="briefing-text" aria-live="polite"></p>
+    </section>
+    <section class="mic-panel" aria-label="음성 메모 바로 시작">
+      <a class="mic" href="/memo?start=1" aria-label="음성 메모 시작"><svg class="i"><use href="#i-mic"/></svg></a>
+      <p class="title">눌러서 말하면 할 일로 정리돼요</p>
+      <p class="fine">“내일까지 SQL 실습 내야 해”처럼 말해 보세요</p>
+    </section>
   </div>
-  <p class="briefing-text hidden" id="briefing-text" aria-live="polite"></p>
-  <div class="hero-mic">
-    <a class="mic idle-pulse" href="/memo?start=1" aria-label="음성 메모 시작"><svg class="i"><use href="#i-mic"/></svg></a>
-    <p class="fine">눌러서 말하면 할 일로 정리돼요</p>
-  </div>
-</section>
 
-<main class="container dash">
-  <div class="tiles" aria-label="한눈에 보기">
-    <a class="tile" href="/tasks">
-      <span class="icon-tile"><svg class="i"><use href="#i-calendar"/></svg></span>
-      <span class="tile-value" id="sum-today"><span class="skel" style="width: 28px; height: 26px"></span></span>
-      <span class="tile-label">오늘 마감 <small>지난 마감 <span id="sum-overdue">-</span>개</small></span>
+  <div class="stat-grid" aria-label="한눈에 보기">
+    <a class="stat" href="/tasks">
+      <span class="label">오늘 마감<svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></span>
+      <span class="value" id="sum-today"><span class="skel" style="width: 28px; height: 30px"></span></span>
+      <span class="hint">지난 마감 <span id="sum-overdue">-</span>개</span>
     </a>
-    <a class="tile" href="/tasks">
-      <span class="icon-tile ink"><svg class="i"><use href="#i-clock"/></svg></span>
-      <span class="tile-value" id="sum-week"><span class="skel" style="width: 28px; height: 26px"></span></span>
-      <span class="tile-label">이번 주 마감 <small>7일 이내</small></span>
+    <a class="stat" href="/tasks">
+      <span class="label">이번 주 마감<svg class="i" aria-hidden="true"><use href="#i-calendar"/></svg></span>
+      <span class="value" id="sum-week"><span class="skel" style="width: 28px; height: 30px"></span></span>
+      <span class="hint">7일 이내</span>
     </a>
-    <a class="tile" href="/tasks" id="nearest-tile">
-      <span class="icon-tile orange"><svg class="i"><use href="#i-flag"/></svg></span>
-      <span class="tile-value" id="sum-nearest"><span class="skel" style="width: 48px; height: 26px"></span></span>
-      <span class="tile-label">가장 가까운 마감 <small id="sum-nearest-title"></small></span>
+    <a class="stat" href="/tasks" id="nearest-tile">
+      <span class="label">가장 가까운 마감<svg class="i" aria-hidden="true"><use href="#i-flag"/></svg></span>
+      <span class="value" id="sum-nearest"><span class="skel" style="width: 72px; height: 30px"></span></span>
+      <span class="hint" id="sum-nearest-title">&nbsp;</span>
     </a>
-    <a class="tile" href="/inbox">
-      <span class="icon-tile green"><svg class="i"><use href="#i-mail"/></svg></span>
-      <span class="tile-value" id="sum-inbox">-</span>
-      <span class="tile-label">받은 편지함 <small>새 과제 후보</small></span>
+    <a class="stat" href="/inbox">
+      <span class="label">받은 편지함<svg class="i" aria-hidden="true"><use href="#i-mail"/></svg></span>
+      <span class="value"><span id="sum-inbox">-</span><span class="new-dot hidden" id="inbox-dot" aria-hidden="true"></span></span>
+      <span class="hint">새 과제 후보</span>
     </a>
   </div>
 
   <div class="grid-2">
-    <section class="card flush" aria-labelledby="tl-title">
+    <section class="card" aria-labelledby="tl-title">
       <div class="card-head">
-        <div>
-          <h3 id="tl-title">타임라인</h3>
-          <p class="fine">수업 · 일정 · 마감을 시간순으로</p>
-        </div>
-        <div class="seg" role="tablist" id="tl-range">
-          <button class="active" data-range="today" role="tab" aria-selected="true">오늘</button>
-          <button data-range="week" role="tab" aria-selected="false">이번 주</button>
+        <h2 id="tl-title">타임라인</h2>
+        <div class="seg" id="tl-range" aria-label="타임라인 범위">
+          <button class="active" data-range="today" aria-pressed="true">오늘</button>
+          <button data-range="week" aria-pressed="false">이번 주</button>
         </div>
       </div>
       <div id="tl-banner"></div>
       <ul class="timeline" id="timeline" aria-live="polite">
-        <li style="padding: 16px 20px"><span class="skel" style="width: 70%"></span><span class="skel" style="width: 45%"></span><span class="skel" style="width: 60%"></span></li>
+        <li class="empty" style="display: block"><span class="skel" style="width: 70%"></span><span class="skel" style="width: 45%"></span><span class="skel" style="width: 60%"></span></li>
       </ul>
     </section>
 
     <section class="card" aria-labelledby="top-title">
-      <div class="card-title" id="top-title"><svg class="i" style="color: var(--primary)"><use href="#i-sparkles"/></svg>오늘 이것부터 <span class="fine" id="top-note"></span></div>
-      <ol class="top3" id="top-list"><li><span></span><div><span class="skel" style="width: 80%"></span><span class="skel" style="width: 50%"></span></div></li></ol>
+      <div class="card-head" style="margin-bottom: 4px">
+        <h2 id="top-title">오늘 이것부터 <span class="badge ai">AI 추천</span><span class="fine" id="top-note"></span></h2>
+      </div>
+      <ol class="top3" id="top-list"><li class="skeleton"><span class="skel" style="width: 80%"></span><span class="skel" style="width: 50%"></span></li></ol>
+      <div class="card-foot"><a class="link" href="/tasks">할 일 보드에서 모두 보기<svg class="i sm" aria-hidden="true"><use href="#i-chevron"/></svg></a></div>
     </section>
   </div>
 
-  <section class="card flush" aria-labelledby="week-tt" style="margin-top: 28px">
+  <section class="card" aria-labelledby="week-tt" style="margin-top: 20px">
     <div class="card-head">
-      <div><h3 id="week-tt">이번 주 시간표</h3><p class="fine">수업을 누르면 과목 모아보기로 가요</p></div>
-      <a class="btn sm gray" href="/timetable">시간표 편집</a>
+      <h2 id="week-tt">이번 주 시간표 <span class="fine num"><%= mdOf(mon) %> ~ <%= mdOf(fri) %></span></h2>
+      <a class="btn line sm" href="/timetable"><svg class="i sm" aria-hidden="true"><use href="#i-pencil"/></svg>시간표 편집</a>
     </div>
-    <%- include('partials/tt-grid') %>
+    <%- include('partials/tt-grid', { ttCompact: true }) %>
   </section>
 </main>
 <script id="classes-data" type="application/json"><%- JSON.stringify(classes).replace(/</g, '\\u003c') %></script>

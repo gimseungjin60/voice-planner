@@ -1,33 +1,29 @@
 <%- include('partials/header') %>
-<header class="subnav">
-  <div class="subnav-inner">
-    <h1 class="subnav-title">할 일 <span class="count" id="total-count"></span></h1>
-    <div class="subnav-actions">
-      <select id="subject-filter" class="compact" aria-label="과목 필터">
-        <option value="">모든 과목</option>
-        <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %>
-      </select>
-    </div>
-  </div>
-</header>
-
 <main class="container">
-  <form class="quick-add" id="task-form">
-    <svg class="i" style="color: var(--primary)"><use href="#i-plus"/></svg>
+  <div class="page-head">
+    <h1>할 일 <span class="sub" id="total-count"></span></h1>
+    <select id="subject-filter" class="pill" aria-label="과목 필터">
+      <option value="">모든 과목</option>
+      <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %>
+    </select>
+  </div>
+
+  <form class="composer" id="task-form">
+    <svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>
     <input id="t-title" name="title" class="qa-title" maxlength="200" required placeholder="새로운 할 일 — 예) 운영체제 3장 복습" aria-label="할 일 제목" />
     <div class="qa-opts">
-      <input id="t-due" name="due_at" type="datetime-local" aria-label="마감" />
-      <select id="t-priority" name="priority" aria-label="우선순위"><option value="mid">우선순위 보통</option><option value="high">우선순위 높음</option><option value="low">우선순위 낮음</option></select>
-      <select id="t-subject" name="subject_id" aria-label="과목"><option value="">과목 없음</option>
+      <input id="t-due" name="due_at" type="datetime-local" class="pill" aria-label="마감" />
+      <select id="t-priority" name="priority" class="pill" aria-label="우선순위"><option value="mid">보통</option><option value="high">높음</option><option value="low">낮음</option></select>
+      <select id="t-subject" name="subject_id" class="pill" aria-label="과목"><option value="">과목 없음</option>
         <% subjects.forEach((s) => { %><option value="<%= s.subject_id %>"><%= s.name %></option><% }) %></select>
       <button class="btn">추가</button>
     </div>
   </form>
 
   <div class="board">
-    <section class="column" data-status="todo"><div class="column-head"><span class="dot"></span><h3>할 일</h3><span class="count"></span></div><div class="cards"></div></section>
-    <section class="column" data-status="doing"><div class="column-head"><span class="dot"></span><h3>진행 중</h3><span class="count"></span></div><div class="cards"></div></section>
-    <section class="column" data-status="done"><div class="column-head"><span class="dot"></span><h3>완료</h3><span class="count"></span></div><div class="cards"></div></section>
+    <section class="column" data-status="todo" aria-label="할 일"><div class="column-head"><span class="dot"></span><h3>할 일</h3><span class="count"></span></div><div class="cards"></div></section>
+    <section class="column" data-status="doing" aria-label="진행 중"><div class="column-head"><span class="dot"></span><h3>진행 중</h3><span class="count"></span></div><div class="cards"></div></section>
+    <section class="column" data-status="done" aria-label="완료"><div class="column-head"><span class="dot"></span><h3>완료</h3><span class="count"></span></div><div class="cards"></div></section>
   </div>
 </main>
 <script id="tasks-data" type="application/json"><%- JSON.stringify(tasks).replace(/</g, '\\u003c') %></script>

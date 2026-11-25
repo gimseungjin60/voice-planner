@@ -1,10 +1,24 @@
 <%- include('partials/header') %>
+<% const notFound = title === '404';
+   const serverError = !notFound && message === '서버 오류가 발생했어요'; %>
 <main class="error-page">
   <div>
-    <p class="code"><%= /^\d+$/.test(title) ? title : '!' %></p>
-    <h1><%= /^\d+$/.test(title) ? '페이지를 찾을 수 없어요' : '문제가 생겼어요' %></h1>
-    <p><%= message %></p>
-    <a class="btn" href="/"><svg class="i"><use href="#i-home"/></svg>대시보드로</a>
+    <% if (notFound) { %>
+      <p class="code">404</p>
+      <h1>주소를 다시 확인해 주세요</h1>
+      <p><%= message === '페이지를 찾을 수 없어요' ? '찾는 페이지가 옮겨졌거나 사라졌어요.' : message %></p>
+      <a class="btn lg" href="/">대시보드로</a>
+    <% } else if (serverError) { %>
+      <span class="warn-icon"><svg class="i"><use href="#i-warn"/></svg></span>
+      <h1>서버 오류가 발생했어요</h1>
+      <p>잠시 뒤에 다시 시도해 주세요. 저장한 메모와 할 일은 그대로 있어요.</p>
+      <button class="btn lg" onclick="location.reload()"><svg class="i sm" aria-hidden="true"><use href="#i-sync"/></svg>다시 시도</button>
+    <% } else { %>
+      <span class="warn-icon"><svg class="i"><use href="#i-lock"/></svg></span>
+      <h1><%= message %></h1>
+      <p>대시보드에서 다른 메뉴를 이용해 주세요.</p>
+      <a class="btn lg" href="/">대시보드로</a>
+    <% } %>
   </div>
 </main>
 <%- include('partials/footer') %>

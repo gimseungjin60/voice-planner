@@ -1,40 +1,48 @@
-// 대시보드: 한눈에 타일 + 통합 타임라인 + AI Top3 + 브리핑(TTS) + 동기화
+// 대시보드: 숫자 카드 + 통합 타임라인 + 오늘 이것부터(AI) + 브리핑(TTS) + 동기화
 const $ = (id) => document.getElementById(id);
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 const kstNow = () => new Date(Date.now() + 9 * 3600000).toISOString().replace("T", " ").slice(0, 19);
 const addDays = (ymd, n) => new Date(Date.parse(ymd) + n * 86400000).toISOString().slice(0, 10);
+const hm = (v) => v.slice(11, 16);
 
-// ---------- 한눈에 타일 + Top3 ----------
+// ---------- 숫자 카드 + 오늘 이것부터 ----------
 async function loadSummary() {
-  const r = await api("/api/tasks/summary");
-  if (!r.ok) return;
+  const r = await api("/api/tasks/summary", { quiet: true });
+  if (!r.ok) {
+    ["sum-today", "sum-week", "sum-nearest"].forEach((id) => ($(id).textContent = "-"));
+    $("top-list").innerHTML = `<li class="empty"><div class="empty-icon"><svg class="i"><use href="#i-alert"/></svg></div>
+      <p class="title">할 일을 불러오지 못했어요</p><p class="desc">저장한 할 일은 그대로 있어요. 잠시 뒤 새로고침해 주세요.</p></li>`;
+    return;
+  }
   const s = r.data;
   $("sum-today").textContent = s.today;
   $("sum-week").textContent = s.week;
   $("sum-overdue").textContent = s.overdue;
-  if (s.today) $("hero-due").innerHTML = ` · 오늘 마감 <b>${s.today}개</b>`;
+  $("hero-due").innerHTML = ` · 오늘 마감 <b class="${s.today ? "red" : ""}">${s.today}개</b>`;
 
   if (s.nearest) {
     const { short, cls } = dueInfo(s.nearest.due_at);
     $("sum-nearest").textContent = short;
-    $("sum-nearest").className = `tile-value ${cls}`;
-    $("sum-nearest-title").textContent = s.nearest.title;
+    $("sum-nearest").classList.toggle("red", cls === "due-red");
+    $("sum-nearest-title").textContent = `${s.nearest.title} · ${hm(s.nearest.due_at)}`;
   } else {
     $("sum-nearest").textContent = "없음";
-    $("sum-nearest-title").textContent = "여유로워요";
+    $("sum-nearest-title").textContent = "남은 마감이 없어요";
   }
 
-  $("top-note").textContent = s.ai_ok ? "" : "AI 연결 실패 · 마감순";
+  $("top-note").textContent = s.ai_ok ? "" : "마감 순으로 골랐어요";
   $("top-list").innerHTML = s.top.length
     ? s.top
         .map((t) => {
           const { label, cls } = dueInfo(t.due_at);
-          return `<li><div><div class="top3-title">${esc(t.title)}</div>
-            <div class="top3-meta">${chip(t.subject_name, t.subject_color)}<span class="due ${cls}">${esc(label)}</span></div>
-            <div class="top3-reason">${esc(t.reason)}</div></div></li>`;
+          return `<li><div>
+            <div class="top3-title">${esc(t.title)}</div>
+            <div class="top3-meta">${chip(t.subject_name, t.subject_color)}${t.due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}</div>
+            ${t.reason ? `<div class="top3-reason">${esc(t.reason)}</div>` : ""}</div></li>`;
         })
         .join("")
-    : `<div class="empty" style="padding: 24px 0"><div class="empty-icon"><svg class="i"><use href="#i-check"/></svg></div><strong>남은 할 일이 없어요</strong>오늘은 마음껏 쉬어도 돼요 🎉</div>`;
+    : `<li class="empty"><div class="empty-icon green"><svg class="i"><use href="#i-check"/></svg></div>
+        <p class="title">오늘은 마음껏 쉬어도 돼요</p><p class="desc">남은 할 일이 없어요.</p></li>`;
 }
 
 // ---------- 받은 편지함 새 후보 ----------
@@ -42,39 +50,51 @@ async function loadInbox() {
   const r = await api("/api/inbox?status=pending", { quiet: true });
   const n = r.ok ? r.data.counts.pending : 0;
   $("sum-inbox").textContent = r.ok ? n : "-";
+  $("inbox-dot").classList.toggle("hidden", !n);
 }
 
 // ---------- 통합 타임라인 ----------
 let range = "today";
-const KIND = { class: ["book", "수업"], event: ["calendar", "일정"], task: ["flag", "마감"] };
+const KIND = { class: "수업", event: "일정", task: "마감" };
 
-function itemHtml(it, now) {
-  const [icon, label] = KIND[it.kind];
-  const start = it.kind === "task" ? it.due_at : it.start_at;
-  const end = it.kind === "task" ? it.due_at : it.end_at;
-  const past = end < now || it.status === "done";
-  const sub =
-    it.kind === "task"
-      ? `<span class="due ${it.status === "done" ? "" : dueInfo(it.due_at).cls}">${it.status === "done" ? "완료" : dueInfo(it.due_at).short}</span>`
-      : it.location
-        ? `<span><svg class="i sm"><use href="#i-pin"/></svg> ${esc(it.location)}</span>`
-        : "";
-  const source = it.kind === "event" ? `<span class="badge">${it.provider === "google" ? "구글" : "직접 추가"}</span>` : "";
-  return `<li class="tl-item kind-${it.kind}${past ? " past" : ""}" style="--c:${esc(it.subject_color || (it.kind === "event" ? "var(--primary-focus)" : "#8e8e93"))}">
-    <div class="tl-time">${start.slice(11, 16)}<small>${it.kind === "task" ? "마감" : end.slice(11, 16)}</small></div>
-    <div class="tl-bar"></div>
-    <div class="tl-body">
-      <div class="tl-title"><svg class="i" aria-label="${label}"><use href="#i-${icon}"/></svg>${esc(it.title)}</div>
-      <div class="tl-meta">${it.subject_name && it.kind !== "class" ? chip(it.subject_name, it.subject_color) : ""}${sub}${source}</div>
-    </div></li>`;
+// 곧 시작: "40분 후" / "2시간 후" (3시간 안쪽만)
+function soon(start, now) {
+  const min = Math.round((Date.parse(start.replace(" ", "T")) - Date.parse(now.replace(" ", "T"))) / 60000);
+  if (min <= 0 || min > 180) return "";
+  return `<span class="badge soon">${min < 60 ? `${min}분 후` : `${Math.floor(min / 60)}시간 후`}</span>`;
 }
 
-function renderTimeline(items, from) {
+function itemHtml(it, now, isNext) {
+  const task = it.kind === "task";
+  const start = task ? it.due_at : it.start_at;
+  const end = task ? it.due_at : it.end_at;
+  const done = it.status === "done";
+  const past = !task && end < now;
+  const color = it.subject_color ? `--c:${esc(it.subject_color)}` : "";
+  let right = "";
+  if (task) right = done ? `<span class="due done">완료</span>` : `<span class="due ${dueInfo(it.due_at).cls}">${esc(dueInfo(it.due_at).label)}</span>`;
+  else if (past) right = `<span class="tl-end">끝남</span>`;
+  else if (isNext) right = soon(start, now);
+  if (!right && it.kind === "event" && it.provider === "google")
+    right = `<span class="badge"><svg class="i" aria-hidden="true"><use href="#i-calendar"/></svg>구글</span>`;
+  const body = task
+    ? `<div class="tl-title"><span class="t">${esc(it.title)}</span>${it.subject_name ? chip(it.subject_name, it.subject_color, true) : ""}</div>`
+    : `<div class="tl-title"><span class="dot" style="${color}"></span><span class="t">${esc(it.title)}</span></div>
+       ${it.location ? `<div class="tl-place">${esc(it.location)}</div>` : ""}`;
+  return `<li class="${past || done ? "past" : ""}">
+    <span class="tl-time">${task ? hm(start) : `${hm(start)}~${hm(end)}`}</span><span class="tl-kind">${KIND[it.kind]}</span>
+    <div class="tl-body">${body}</div><div>${right}</div></li>`;
+}
+
+const nowRow = (now) => `<li class="tl-now"><span>${hm(now)} 지금</span><i aria-hidden="true"></i></li>`;
+
+function renderTimeline(items) {
   const now = kstNow();
   const today = now.slice(0, 10);
   if (!items.length) {
     $("timeline").innerHTML = `<li class="empty"><div class="empty-icon"><svg class="i"><use href="#i-calendar"/></svg></div>
-      <strong>${range === "today" ? "오늘은 일정이 없어요" : "이번 주 일정이 없어요"}</strong>말로 일정을 추가해 보세요</li>`;
+      <p class="title">${range === "today" ? "오늘은 일정이 없어요" : "이번 주 일정이 없어요"}</p>
+      <p class="desc">수업도 약속도 없는 ${range === "today" ? "하루" : "한 주"}예요.</p></li>`;
     return;
   }
   const at = (it) => (it.kind === "task" ? it.due_at : it.start_at);
@@ -86,16 +106,17 @@ function renderTimeline(items, from) {
     const day = at(it).slice(0, 10);
     if (range === "week" && day !== lastDay) {
       const dow = WEEK[new Date(day + "T12:00:00Z").getUTCDay()];
-      html += `<li class="tl-day${day === today ? " today" : ""}">${day === today ? "오늘 · " : day === addDays(today, 1) ? "내일 · " : ""}${Number(day.slice(5, 7))}월 ${Number(day.slice(8))}일 ${dow}요일</li>`;
+      html += `<li class="tl-day">${dow} ${md(day)}${day === today ? " · 오늘" : day === addDays(today, 1) ? " · 내일" : ""}</li>`;
       lastDay = day;
     }
-    if (!nowShown && day === today && at(it) > now) {
-      html += `<li class="tl-now" aria-label="지금">${now.slice(11, 16)}</li>`;
+    const next = !nowShown && day === today && at(it) > now;
+    if (next) {
+      html += nowRow(now);
       nowShown = true;
     }
-    html += itemHtml(it, now);
+    html += itemHtml(it, now, next);
   }
-  if (!nowShown && range === "today") html += `<li class="tl-now">${now.slice(11, 16)}</li>`;
+  if (!nowShown && range === "today") html += nowRow(now);
   $("timeline").innerHTML = html;
 }
 
@@ -104,8 +125,8 @@ function banner(google) {
   if (google === "connected") return (box.innerHTML = "");
   box.innerHTML =
     google === "expired"
-      ? `<div class="banner warn" style="margin: 8px 20px 0"><svg class="i"><use href="#i-alert"/></svg><span class="grow">구글 연결이 만료됐어요. 저장된 일정만 보여요</span><a class="btn sm" href="/settings">다시 연결</a></div>`
-      : `<div class="banner" style="margin: 8px 20px 0"><svg class="i"><use href="#i-calendar"/></svg><span class="grow">구글 캘린더를 연결하면 일정도 여기에 모여요</span><a class="btn sm secondary" href="/settings">연결하기</a></div>`;
+      ? `<div class="banner warn"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><span class="grow">구글 연결이 만료됐어요. 저장된 일정만 보여요</span><a class="btn sm" href="/settings">다시 연결</a></div>`
+      : `<div class="banner"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><span class="grow">구글 캘린더를 연결하면 일정도 여기에 모여요</span><a class="btn sm" href="/settings">연결하기</a></div>`;
 }
 
 async function loadTimeline() {
@@ -114,7 +135,7 @@ async function loadTimeline() {
   const r = await api(`/api/timeline?from=${from}&to=${to}`, { quiet: true });
   if (r.ok) {
     banner(r.data.google);
-    return renderTimeline(r.data.items, from);
+    return renderTimeline(r.data.items);
   }
   // 타임라인 API가 아직 없으면 오늘 수업만이라도 보여준다
   banner("disconnected");
@@ -124,7 +145,6 @@ async function loadTimeline() {
       kind: "class", title: c.name, subject_name: c.name, subject_color: c.color, location: c.room,
       start_at: `${from} ${c.start_time}`, end_at: `${from} ${c.end_time}`,
     })),
-    from,
   );
 }
 
@@ -134,7 +154,7 @@ $("tl-range").addEventListener("click", (e) => {
   range = b.dataset.range;
   $("tl-range").querySelectorAll("button").forEach((x) => {
     x.classList.toggle("active", x === b);
-    x.setAttribute("aria-selected", x === b);
+    x.setAttribute("aria-pressed", x === b);
   });
   loadTimeline();
 });
@@ -146,7 +166,7 @@ let player = null;
 const briefingDone = () => {
   player = null;
   briefingLabel.textContent = "브리핑 듣기";
-  $("briefing-text").querySelector(".speaking-dot")?.remove();
+  briefingBtn.classList.remove("playing");
 };
 briefingBtn.addEventListener("click", async () => {
   if (player || Voice.speaking) {
@@ -162,7 +182,7 @@ briefingBtn.addEventListener("click", async () => {
     return briefingDone();
   }
   const box = $("briefing-text");
-  box.innerHTML = `<span class="speaking-dot"></span>${esc(r.data.content)}`;
+  box.textContent = r.data.content;
   box.classList.remove("hidden");
   player = new Audio("/api/briefing/today/audio");
   player.onended = briefingDone;
@@ -173,6 +193,7 @@ briefingBtn.addEventListener("click", async () => {
   player.oncanplay = () => briefingBtn.classList.remove("loading");
   player.play().catch(() => {});
   briefingLabel.textContent = "그만 듣기";
+  briefingBtn.classList.add("playing");
   setTimeout(() => briefingBtn.classList.remove("loading"), 8000);
 });
 
@@ -180,13 +201,16 @@ briefingBtn.addEventListener("click", async () => {
 const syncBtn = $("sync-btn");
 syncBtn.addEventListener("click", async () => {
   syncBtn.classList.add("loading");
+  syncBtn.querySelector("span").textContent = "동기화 중…";
   const [cal, mail] = await Promise.all([
     api("/api/sync/calendar", { method: "POST", quiet: true }),
     api("/api/sync/gmail", { method: "POST", quiet: true }),
   ]);
   syncBtn.classList.remove("loading");
-  if (!cal.ok && !mail.ok) return toast("구글을 연결하면 동기화할 수 있어요");
-  toast(`동기화했어요 · 일정 ${cal.data?.synced ?? 0}개, 새 과제 후보 ${mail.data?.found ?? 0}개`);
+  syncBtn.querySelector("span").textContent = "동기화";
+  if (!cal.ok && !mail.ok) return toast("구글을 연결하면 동기화할 수 있어요", { type: "fail" });
+  $("sync-note").textContent = "구글 캘린더·메일 · 방금 동기화";
+  toast(`동기화했어요 · 일정 ${cal.data?.synced ?? 0}개, 새 과제 후보 ${mail.data?.found ?? 0}개`, { type: "sync" });
   loadTimeline();
   loadInbox();
 });

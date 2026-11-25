@@ -1,10 +1,12 @@
 <% if (user) { %><%- include('assistant') %><% } %>
-<dialog id="confirm-dialog" aria-labelledby="confirm-msg">
+<div class="toast-wrap" id="toast-wrap" aria-live="polite"></div>
+<dialog id="confirm-dialog" role="alertdialog" aria-labelledby="confirm-msg" aria-describedby="confirm-desc">
   <form method="dialog" class="alert-box">
-    <p id="confirm-msg"></p>
+    <h2 id="confirm-msg"></h2>
+    <p id="confirm-desc"></p>
     <div class="alert-actions">
-      <button value="cancel">취소</button>
-      <button value="ok" id="confirm-ok" class="danger">확인</button>
+      <button class="btn gray lg" value="cancel" autofocus>취소</button>
+      <button class="btn danger lg" value="ok" id="confirm-ok">확인</button>
     </div>
   </form>
 </dialog>

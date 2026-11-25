@@ -1,26 +1,38 @@
-<%# 주간 시간표 격자 (시간표·대시보드 공용). 필요한 값: subjects(schedules 포함), todayDow(선택) %>
+<%# 주간 시간표 격자 (시간표·대시보드 공용). 필요한 값: subjects(schedules 포함), todayDow(선택), ttCompact(대시보드 미니) %>
 <% const TT_WEEK = ["일", "월", "화", "수", "목", "금", "토"];
    const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+   const pad = (n) => String(n).padStart(2, "0");
    const slots = subjects.flatMap((s) => s.schedules.map((sc) => ({ ...sc, name: s.name, color: s.color })));
    const days = [1, 2, 3, 4, 5].concat(slots.some((x) => x.day_of_week === 6) ? [6] : [], slots.some((x) => x.day_of_week === 0) ? [0] : []);
    const from = Math.min(9, ...slots.map((x) => Math.floor(toMin(x.start_time) / 60)));
    const to = Math.max(18, ...slots.map((x) => Math.ceil(toMin(x.end_time) / 60)));
    const row = (min) => Math.round((min - from * 60) / 30) + 2;
-   const todayDow = typeof locals.todayDow === "number" ? locals.todayDow : -1; %>
-<div class="tt-wrap">
-  <div class="tt" id="tt" style="--days: <%= days.length %>; --slots: <%= (to - from) * 2 %>" data-from="<%= from %>" data-today-col="<%= days.indexOf(todayDow) %>">
-    <% days.forEach((d, i) => { %>
-      <div class="tt-dayhead <%= d === todayDow ? 'today' : '' %>" style="grid-column: <%= i + 2 %>"><span><%= TT_WEEK[d] %></span></div>
+   const todayDow = typeof locals.todayDow === "number" ? locals.todayDow : -1;
+   const compact = !!locals.ttCompact;
+   // 이번 주 날짜 (한국 시간, 월요일 시작)
+   const kstNow = new Date(Date.now() + 9 * 3600000);
+   const dateOf = (dow) => new Date(kstNow.getTime() + (((dow + 6) % 7) - ((kstNow.getUTCDay() + 6) % 7)) * 86400000).getUTCDate(); %>
+<div class="tt-wrap <%= compact ? '' : 'bare' %>">
+  <div class="tt <%= compact ? 'compact' : '' %>" id="tt" style="--days: <%= days.length %>; --slots: <%= (to - from) * 2 %>" data-from="<%= from %>" data-today-col="<%= days.indexOf(todayDow) %>">
+    <div class="tt-corner"></div>
+    <% days.forEach((d, i) => { const today = d === todayDow; %>
+      <div class="tt-dayhead <%= today ? 'today' : '' %>" style="grid-column: <%= i + 2 %>">
+        <% if (compact) { %><%= TT_WEEK[d] %> <b><%= dateOf(d) %></b><%= today ? ' · 오늘' : '' %>
+        <% } else { %><span><%= TT_WEEK[d] %><%= today ? ' · 오늘' : '' %></span><b><%= dateOf(d) %></b><% } %>
+      </div>
     <% }) %>
     <% for (let h = from; h < to; h++) { %>
-      <div class="tt-hour" style="grid-row: <%= (h - from) * 2 + 2 %>"><%= h %>:00</div>
+      <div class="tt-hour" style="grid-row: <%= (h - from) * 2 + 2 %>"><%= pad(h) %>:00</div>
       <% days.forEach((d, i) => { %>
         <div class="tt-cell <%= d === todayDow ? 'today' : '' %>" style="grid-column: <%= i + 2 %>; grid-row: <%= (h - from) * 2 + 2 %> / span 2"></div>
       <% }) %>
     <% } %>
-    <% slots.filter((x) => days.includes(x.day_of_week)).forEach((x) => { %>
-      <a class="tt-slot" href="/subjects/<%= x.subject_id %>" style="--c: <%= x.color %>; grid-column: <%= days.indexOf(x.day_of_week) + 2 %>; grid-row: <%= row(toMin(x.start_time)) %> / <%= row(toMin(x.end_time)) %>">
-        <b><%= x.name %></b><%= x.start_time.slice(0, 5) %>~<%= x.end_time.slice(0, 5) %><br /><%= x.room || '' %>
+    <% slots.filter((x) => days.includes(x.day_of_week)).forEach((x) => { const range = x.start_time.slice(0, 5) + '~' + x.end_time.slice(0, 5); %>
+      <a class="tt-slot" href="/subjects/<%= x.subject_id %>" style="--c: <%= x.color %>; grid-column: <%= days.indexOf(x.day_of_week) + 2 %>; grid-row: <%= row(toMin(x.start_time)) %> / <%= row(toMin(x.end_time)) %>"
+         aria-label="<%= x.name %> <%= TT_WEEK[x.day_of_week] %>요일 <%= range %>">
+        <b><%= x.name %></b>
+        <% if (compact) { %><span><%= range %><%= x.room ? ' · ' + x.room : '' %></span>
+        <% } else { %><span><%= range %></span><% if (x.room) { %><span><%= x.room %></span><% } %><% } %>
       </a>
     <% }) %>
   </div>

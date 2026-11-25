@@ -4,81 +4,84 @@
    const doneN = subject.tasks.length - open.length;
    const pct = subject.tasks.length ? Math.round((doneN / subject.tasks.length) * 100) : 0;
    const md = (v) => v ? `${Number(v.slice(5, 7))}/${Number(v.slice(8, 10))}` : '';
-   const MAIL = { pending: '새 후보', accepted: '추가함', ignored: '무시함' }; %>
-<header class="subnav">
-  <div class="subnav-inner">
-    <h1 class="subnav-title"><span class="dot-lg" style="--c: <%= subject.color %>"></span><%= subject.name %>
-      <span class="count"><%= subject.professor || '' %></span></h1>
-    <div class="subnav-actions"><a class="btn sm gray" href="/timetable">시간표에서 수정</a></div>
+   const STATUS = { todo: ['할 일', ''], doing: ['진행 중', 'blue'], done: ['완료', 'green'] };
+   const MAIL = { pending: ['새 후보', 'blue'], accepted: ['추가함', 'green'], ignored: ['무시함', ''] };
+   const times = subject.schedules.map((x) => WEEK[x.day_of_week] + ' ' + x.start_time.slice(0, 5) + '~' + x.end_time.slice(0, 5)).join(', ');
+   const rooms = [...new Set(subject.schedules.map((x) => x.room).filter(Boolean))].join(', '); %>
+<main class="container" style="--c: <%= subject.color %>">
+  <a class="back" href="/timetable"><svg class="i sm" aria-hidden="true"><use href="#i-chevron-left"/></svg>시간표</a>
+  <div class="page-head course-head">
+    <div>
+      <h1><span class="course-dot" aria-hidden="true"></span><%= subject.name %></h1>
+      <p class="num"><%= [subject.professor, times || '수업 시간 없음', rooms].filter(Boolean).join(' · ') %></p>
+    </div>
+    <a class="btn line" href="/timetable"><svg class="i sm" aria-hidden="true"><use href="#i-pencil"/></svg>시간표에서 수정</a>
   </div>
-</header>
 
-<main class="container stack">
   <div class="stat-grid">
-    <div class="stat-card"><p class="label">남은 할 일</p><p class="value"><%= open.length %></p><p class="fine">전체 <%= subject.tasks.length %>개</p></div>
-    <div class="stat-card"><p class="label">완료율</p><p class="value"><%= pct %>%</p>
-      <div class="progress" style="--c: <%= subject.color %>"><span style="width: <%= pct %>%"></span></div></div>
-    <div class="stat-card"><p class="label">음성 메모</p><p class="value"><%= subject.memos.length %></p><p class="fine">최근 20개까지</p></div>
-    <div class="stat-card"><p class="label">수업</p><p class="value"><%= subject.schedules.length %></p>
-      <p class="fine"><%= subject.schedules.map((x) => WEEK[x.day_of_week] + ' ' + x.start_time.slice(0, 5)).join(', ') || '수업 시간 없음' %></p></div>
+    <div class="stat"><p class="label">남은 할 일</p><p class="value"><%= open.length %></p><p class="hint">전체 <%= subject.tasks.length %>개</p></div>
+    <div class="stat"><p class="label">완료율</p><p class="value"><%= pct %>%</p>
+      <div class="meter" role="img" aria-label="완료율 <%= pct %>%"><span style="width: <%= pct %>%"></span></div></div>
+    <div class="stat"><p class="label">음성 메모</p><p class="value"><%= subject.memos.length %></p><p class="hint"><%= subject.memos.length ? '최근 ' + md(subject.memos[0].created_at) : '아직 없어요' %></p></div>
+    <div class="stat"><p class="label">수업</p><p class="value"><%= subject.schedules.length %></p>
+      <p class="hint num"><%= subject.schedules.map((x) => WEEK[x.day_of_week] + ' ' + x.start_time.slice(0, 5)).join(', ') || '수업 시간 없음' %></p></div>
   </div>
 
-  <div class="grid-2">
-    <section>
-      <p class="section-label">할 일</p>
+  <div class="grid-2 even">
+    <section class="card">
+      <div class="card-head" style="margin-bottom: 0"><h2>이 과목 할 일</h2><a class="link" href="/tasks">할 일 보드에서 보기</a></div>
       <% if (!subject.tasks.length) { %>
-        <div class="card empty"><div class="empty-icon"><svg class="i"><use href="#i-check"/></svg></div><strong>할 일이 없어요</strong>음성 메모로 말하면 이 과목으로 정리돼요</div>
+        <div class="empty"><div class="empty-icon"><svg class="i"><use href="#i-check"/></svg></div><p class="title">이 과목 할 일이 없어요</p><p class="desc">음성 메모로 말하면 이 과목으로 정리돼요.</p></div>
       <% } else { %>
-        <div class="group">
-          <% subject.tasks.forEach((t) => { %>
-            <a class="row" href="/tasks">
-              <span class="icon-tile <%= t.status === 'done' ? 'green' : 'ink' %>"><svg class="i"><use href="#i-<%= t.status === 'done' ? 'check' : 'flag' %>"/></svg></span>
-              <div class="row-main">
-                <div class="row-title <%= t.status === 'done' ? 'struck' : '' %>"><%= t.title %></div>
-                <div class="row-sub"><% if (t.due_at) { %><span class="due" data-due="<%= t.due_at %>" <%= t.status === 'done' ? 'data-done=1' : '' %>></span><% } else { %>마감 없음<% } %></div>
-              </div>
-              <span class="badge"><%= { todo: '할 일', doing: '진행 중', done: '완료' }[t.status] %></span>
-            </a>
+        <div class="list">
+          <% subject.tasks.forEach((t) => { const done = t.status === 'done'; %>
+            <div class="row">
+              <span class="check <%= done ? 'on' : '' %>" aria-hidden="true"></span>
+              <div class="row-main"><div class="row-title <%= done ? 'struck' : '' %>"><%= t.title %></div></div>
+              <span class="badge <%= STATUS[t.status][1] %>"><%= STATUS[t.status][0] %></span>
+              <% if (done) { %><span class="due num">완료 <%= md(t.completed_at || t.updated_at) %></span>
+              <% } else if (t.due_at) { %><span class="due" data-due="<%= t.due_at %>"></span><% } %>
+            </div>
           <% }) %>
         </div>
       <% } %>
     </section>
 
     <div class="stack">
-      <section>
-        <p class="section-label">음성 메모</p>
+      <section class="card">
+        <div class="card-head" style="margin-bottom: 0"><h2>이 과목 음성 메모</h2><a class="link" href="/memos?subject=<%= subject.subject_id %>">메모 모두 보기</a></div>
         <% if (!subject.memos.length) { %>
-          <div class="card empty"><strong>메모가 없어요</strong></div>
+          <p class="fine" style="padding: 16px 0 4px">이 과목 메모가 아직 없어요.</p>
         <% } else { %>
-          <div class="group">
-            <% subject.memos.forEach((m) => { %>
+          <div class="list">
+            <% subject.memos.slice(0, 5).forEach((m) => { %>
               <a class="row" href="/memos/<%= m.memo_id %>">
-                <span class="icon-tile"><svg class="i"><use href="#i-<%= m.memo_type === 'lecture' ? 'wave' : 'note' %>"/></svg></span>
+                <span class="tile"><svg class="i"><use href="#i-<%= m.memo_type === 'lecture' ? 'lecture' : 'mic' %>"/></svg></span>
                 <div class="row-main">
-                  <div class="row-title clamp-1"><%= (m.summary || m.transcript).split('\n')[0] %></div>
-                  <div class="row-sub"><%= m.memo_type === 'lecture' ? '강의 녹음' : '짧은 메모' %> · <%= md(m.created_at) %></div>
+                  <div class="row-title"><%= (m.summary || m.transcript).split('\n')[0].replace(/^[•★]\s*/, '') %></div>
+                  <div class="row-sub num"><%= m.memo_type === 'lecture' ? '강의 녹음' : '짧은 메모' %> · <%= md(m.created_at) %> <%= m.created_at.slice(11, 16) %></div>
                 </div>
-                <svg class="i sm chev"><use href="#i-chevron"/></svg>
+                <svg class="i chev" aria-hidden="true"><use href="#i-chevron"/></svg>
               </a>
             <% }) %>
           </div>
         <% } %>
       </section>
 
-      <section>
-        <p class="section-label">메일에서 찾은 과제</p>
+      <section class="card">
+        <div class="card-head" style="margin-bottom: 0"><h2>메일에서 찾은 과제</h2><a class="link" href="/inbox">받은 편지함으로</a></div>
         <% if (!subject.mails.length) { %>
-          <div class="card empty"><strong>메일 과제가 없어요</strong></div>
+          <p class="fine" style="padding: 16px 0 4px">이 과목에서 찾은 과제가 없어요.</p>
         <% } else { %>
-          <div class="group">
+          <div class="list">
             <% subject.mails.forEach((m) => { %>
               <a class="row" href="/inbox">
-                <span class="icon-tile green"><svg class="i"><use href="#i-mail"/></svg></span>
+                <span class="tile blue"><svg class="i"><use href="#i-mail"/></svg></span>
                 <div class="row-main">
-                  <div class="row-title clamp-1"><%= m.ai_title || m.subject %></div>
-                  <div class="row-sub clamp-1"><%= m.subject %> · <%= md(m.received_at) %></div>
+                  <div class="row-title"><%= m.ai_title || m.subject %></div>
+                  <div class="row-sub clamp-1 num"><%= m.subject %> · <%= md(m.received_at) %> <%= m.received_at.slice(11, 16) %></div>
                 </div>
-                <span class="badge"><%= MAIL[m.status] %></span>
+                <span class="badge <%= MAIL[m.status][1] %>"><%= MAIL[m.status][0] %></span>
               </a>
             <% }) %>
           </div>
