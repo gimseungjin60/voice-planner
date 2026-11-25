@@ -2382,6 +2382,17 @@ dialog[open] > * {
   font-size: 13.5px;
   font-weight: 600;
 }
+/* 칸이 좁아도 글자가 칸 밖으로 잘려 보이지 않게 한 줄 말줄임 */
+.tt-slot b,
+.tt-slot span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tt-slot.short {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
 .tt-now {
   z-index: 2;
   grid-row: 2;
