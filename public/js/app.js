@@ -133,6 +133,12 @@ document.addEventListener("DOMContentLoaded", () => {
     location.href = "/login";
   });
   ttNowLine();
+  // 프로필 메뉴: 바깥을 누르거나 Esc를 누르면 닫는다
+  const menu = document.querySelector(".user-menu");
+  if (menu) {
+    document.addEventListener("click", (e) => menu.open && !menu.contains(e.target) && (menu.open = false));
+    document.addEventListener("keydown", (e) => e.key === "Escape" && menu.open && ((menu.open = false), menu.querySelector("summary").focus()));
+  }
   // 내비 받은 편지함 배지 = 새 후보 개수 (0이거나 연동 전이면 숨김)
   const badge = document.getElementById("nav-inbox-badge");
   if (badge)
