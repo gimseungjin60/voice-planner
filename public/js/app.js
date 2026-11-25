@@ -133,12 +133,17 @@ document.addEventListener("DOMContentLoaded", () => {
     location.href = "/login";
   });
   ttNowLine();
-  // 프로필 메뉴: 바깥을 누르거나 Esc를 누르면 닫는다
-  const menu = document.querySelector(".user-menu");
-  if (menu) {
-    document.addEventListener("click", (e) => menu.open && !menu.contains(e.target) && (menu.open = false));
-    document.addEventListener("keydown", (e) => e.key === "Escape" && menu.open && ((menu.open = false), menu.querySelector("summary").focus()));
-  }
+  // 펼침 메뉴(프로필 · 할 일 '…'): 바깥을 누르거나 Esc를 누르면 닫는다. 화면이 다시 그려져도 동작하도록 그때그때 찾는다
+  document.addEventListener("click", (e) =>
+    document.querySelectorAll("details.user-menu[open], details.pop[open]").forEach((m) => !m.contains(e.target) && (m.open = false)),
+  );
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    document.querySelectorAll("details.user-menu[open], details.pop[open]").forEach((m) => {
+      m.open = false;
+      m.querySelector("summary").focus();
+    });
+  });
   // 내비 받은 편지함 배지 = 새 후보 개수 (0이거나 연동 전이면 숨김)
   const badge = document.getElementById("nav-inbox-badge");
   if (badge)

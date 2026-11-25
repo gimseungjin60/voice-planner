@@ -1,6 +1,7 @@
 // 할 일 보드: 3열 카드. 체크·이동 버튼 → PATCH → 새로고침 없이 다시 그림. 이동 후 4초 동안 실행 취소
 let tasks = JSON.parse(document.getElementById("tasks-data").textContent);
-const filter = document.getElementById("subject-filter");
+const filterNav = document.getElementById("subject-filter");
+let subjectFilter = "";
 const board = document.querySelector(".board");
 const ORDER = ["todo", "doing", "done"];
 const STATUS_LABEL = { todo: "할 일", doing: "진행 중", done: "완료" };
@@ -10,39 +11,42 @@ function card(t) {
   const done = t.status === "done";
   const { label, cls } = dueInfo(t.due_at);
   const src = SOURCE[t.source];
-  const move = (to, text, style) => `<button class="btn ${style} sm" data-move="${t.task_id}" data-to="${to}">${text}</button>`;
-  const prev = `<svg class="i sm" aria-hidden="true"><use href="#i-chevron-left"/></svg>`;
-  const next = `<svg class="i sm" aria-hidden="true"><use href="#i-chevron"/></svg>`;
-  return `<article class="task${done ? " done" : ""}">
+  // 제목 줄 오른쪽: 다음 단계로 옮기는 아이콘 버튼 1개 + '…' 메뉴(이전 단계로 · 삭제)
+  const step = { todo: ["doing", "chevron", "시작하기"], doing: ["done", "check", "완료"] }[t.status];
+  const back = { doing: ["todo", "할 일로 되돌리기"], done: ["doing", "진행 중으로 되돌리기"] }[t.status];
+  return `<article class="task${done ? " done" : ""}${t.priority === "high" && !done ? " high" : ""}">
     <button class="check${done ? " on" : ""}" data-move="${t.task_id}" data-to="${done ? "todo" : "done"}" aria-label="${done ? "완료 취소" : "완료로 표시"}: ${esc(t.title)}"></button>
     <div class="task-title">${esc(t.title)}</div>
-    <div class="task-meta">
-      ${t.subject_name ? chip(t.subject_name, t.subject_color) : ""}
-      ${done ? (t.completed_at ? `<span class="due done">완료 ${md(t.completed_at)}</span>` : "") : t.due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}
+    <div class="task-tools">
+      ${step ? `<button class="icon-btn step" data-move="${t.task_id}" data-to="${step[0]}" title="${step[2]}" aria-label="${step[2]}: ${esc(t.title)}"><svg class="i sm" aria-hidden="true"><use href="#i-${step[1]}"/></svg></button>` : ""}
+      <details class="pop">
+        <summary class="icon-btn" aria-label="더 보기: ${esc(t.title)}"><svg class="i sm" aria-hidden="true"><use href="#i-more"/></svg></summary>
+        <div class="menu">
+          ${back ? `<button data-move="${t.task_id}" data-to="${back[0]}">${back[1]}</button>` : ""}
+          <button class="danger" data-del="${t.task_id}">삭제</button>
+        </div>
+      </details>
     </div>
-    ${done ? "" : `<div class="task-sub">${prio(t.priority)}${src ? `<span class="src"><svg class="i" aria-hidden="true"><use href="#i-${src[0]}"/></svg>${src[1]}</span>` : ""}</div>`}
-    ${
-      t.status === "todo"
-        ? `<div class="task-actions"><span class="spacer"></span>${move("doing", `시작하기${next}`, "line")}</div>`
-        : t.status === "doing"
-          ? `<div class="task-actions">${move("todo", `${prev}할 일로`, "line")}<span class="spacer"></span>${move("done", `완료${next}`, "")}</div>`
-          : ""
-    }
-    <button class="icon-btn danger del" data-del="${t.task_id}" aria-label="삭제: ${esc(t.title)}"><svg class="i sm"><use href="#i-trash"/></svg></button>
+    <div class="task-meta">
+      ${t.subject_name ? chip(t.subject_name, t.subject_color, true) : ""}
+      ${done ? (t.completed_at ? `<span class="due done">완료 ${md(t.completed_at)}</span>` : "") : t.due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}
+      ${t.priority === "high" && !done ? `<span class="prio-high"><svg class="i sm" aria-hidden="true"><use href="#i-flag"/></svg>중요</span>` : ""}
+      ${src && !done ? `<span class="src" title="${src[1]}에서 추가"><svg class="i" aria-hidden="true"><use href="#i-${src[0]}"/></svg>${src[1]}</span>` : ""}
+    </div>
   </article>`;
 }
 
 const EMPTY = { todo: "할 일이 없어요. 위에서 추가하거나 말로 남겨보세요", doing: "진행 중인 일이 없어요", done: "아직 완료한 할 일이 없어요" };
 
 function render() {
-  const shown = tasks.filter((t) => !filter.value || String(t.subject_id) === filter.value);
+  const shown = tasks.filter((t) => !subjectFilter || String(t.subject_id) === subjectFilter);
   document.querySelectorAll(".column").forEach((col) => {
     const st = col.dataset.status;
     const list = shown.filter((t) => t.status === st);
     col.querySelector(".cards").innerHTML = list.map(card).join("") || `<div class="empty-col">${EMPTY[st]}</div>`;
     col.querySelector(".count").textContent = list.length;
   });
-  document.getElementById("total-count").textContent = `· ${shown.filter((t) => t.status !== "done").length}개 남음`;
+  document.getElementById("total-count").textContent = `${shown.filter((t) => t.status !== "done").length}개 남음`;
 }
 
 async function moveTask(id, to) {
@@ -56,6 +60,7 @@ async function moveTask(id, to) {
 board.addEventListener("click", async (e) => {
   const b = e.target.closest("button");
   if (!b) return;
+  b.closest("details")?.removeAttribute("open");
   if (b.dataset.move) {
     const id = Number(b.dataset.move);
     const from = tasks.find((t) => t.task_id === id).status;
@@ -88,5 +93,29 @@ form.addEventListener("submit", async (e) => {
   toast("할 일을 추가했어요");
 });
 
-filter.addEventListener("change", render);
+// 과목 칩 필터 (메모 목록과 같은 모양)
+filterNav.addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  subjectFilter = b.dataset.subject;
+  filterNav.querySelectorAll("button").forEach((x) => {
+    x.classList.toggle("active", x === b);
+    x.setAttribute("aria-pressed", x === b);
+  });
+  render();
+});
+
+// 마감 빠른 선택: 오늘 23:59 · 내일 23:59 · 이번 주 일요일 23:59 (한국 시간)
+const dueInput = document.getElementById("t-due");
+const quickBtns = document.querySelectorAll("[data-quick]");
+document.querySelector(".due-quick").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-quick]");
+  if (!b) return;
+  const today = new Date(Date.now() + 9 * 3600000); // UTC 필드로 한국 날짜를 읽는다
+  const add = { today: 0, tomorrow: 1, week: (7 - today.getUTCDay()) % 7 }[b.dataset.quick];
+  dueInput.value = new Date(today.getTime() + add * 86400000).toISOString().slice(0, 10) + "T23:59";
+  quickBtns.forEach((x) => x.classList.toggle("on", x === b));
+});
+dueInput.addEventListener("input", () => quickBtns.forEach((x) => x.classList.remove("on")));
+form.addEventListener("reset", () => quickBtns.forEach((x) => x.classList.remove("on")));
 render();
