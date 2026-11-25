@@ -5,7 +5,7 @@
    const dur = (s) => !s ? '' : s >= 3600 ? `${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}` : `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
    const first = (list.page - 1) * 10 + 1; // 한 쪽 10개 (routes/api/memos.js PAGE_SIZE)
    const pageUrl = (p) => `/memos?page=${p}${subject ? '&subject=' + subject : ''}`; %>
-<main class="container">
+<main class="container narrow">
   <div class="page-head">
     <h1>메모 <span class="count num"><%= list.total %>개</span></h1>
     <nav class="filter-chips" aria-label="과목 필터">

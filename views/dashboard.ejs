@@ -17,7 +17,7 @@
       <p class="lead" id="hero-lead">오늘 수업 <b><%= classes.length %>개</b><span id="hero-due"></span></p>
       <div class="today-actions">
         <button class="btn line" id="briefing-btn"><svg class="i" aria-hidden="true"><use href="#i-speaker"/></svg><span>브리핑 듣기</span></button>
-        <button class="btn line" id="sync-btn"><svg class="i" aria-hidden="true"><use href="#i-sync"/></svg><span>동기화</span></button>
+        <button class="btn text sync" id="sync-btn" title="구글 캘린더·메일 동기화"><svg class="i sm" aria-hidden="true"><use href="#i-sync"/></svg><span>동기화</span></button>
         <span class="fine" id="sync-note">구글 캘린더·메일</span>
       </div>
       <p class="briefing hidden" id="briefing-text" aria-live="polite"></p>
@@ -33,7 +33,7 @@
     <a class="stat" href="/tasks">
       <span class="label">오늘 마감<svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></span>
       <span class="value" id="sum-today"><span class="skel" style="width: 28px; height: 30px"></span></span>
-      <span class="hint">지난 마감 <span id="sum-overdue">-</span>개</span>
+      <span class="hint">지금 이후 남은 마감</span>
     </a>
     <a class="stat" href="/tasks">
       <span class="label">이번 주 마감<svg class="i" aria-hidden="true"><use href="#i-calendar"/></svg></span>

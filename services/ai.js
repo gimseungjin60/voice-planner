@@ -170,10 +170,11 @@ JSON만 출력: {"subject":"목록 중 과목명 또는 null","points":["핵심 
 async function prioritize({ userId, tasks, now }) {
   if (!tasks.length) return [];
   const input = tasks
-    .map((t) => `${t.task_id}|${t.title}|${t.subject_name || "-"}|마감:${t.due_at || "없음"}|${t.priority}|${t.status}`)
+    .map((t) => `${t.task_id}|${t.title}|${t.subject_name || "-"}|마감:${t.due_at || "없음"}${t.due_at && t.due_at < now ? "(지남)" : ""}|${t.priority}|${t.status}`)
     .join("\n");
   const system = `지금은 ${now}. 대학생의 할 일 목록(id|제목|과목|마감|우선순위|상태)을 보고 오늘 먼저 할 3개를 고른다.
-마감이 가까운 것, 우선순위 high, 이미 진행 중(doing)인 것을 우선한다. 이유는 20자 내외 한국어 한 줄.
+마감이 지난 것(지남), 마감이 가까운 것, 우선순위 high, 이미 진행 중(doing)인 것을 우선한다. 이유는 20자 내외 한국어 한 줄.
+(지남) 표시가 있으면 이유에 "지났어요"처럼 지난 사실을 쓰고 "오늘 밤 마감" 같은 앞으로의 표현은 쓰지 않는다.
 JSON만 출력: {"top":[{"task_id":1,"reason":"..."}]}`;
   const r = await call({ feature: "prioritize", userId, system, input, maxTokens: 400 });
   if (!r || !Array.isArray(r.top)) return null;

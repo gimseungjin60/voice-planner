@@ -13,12 +13,12 @@ let tick = null;
 const MODE = {
   memo: {
     desc: "떠오른 할 일을 말로 남기면 AI가 할 일 후보로 정리해 드려요.",
-    placeholder: "데이터베이스 교수님이 다음 주 화요일까지 ERD 과제 내래",
-    idle: ["버튼을 누르고 말하세요", "말하는 동안 오른쪽에 글자가 바로 적혀요"],
+    placeholder: "예: 데이터베이스 교수님이 다음 주 화요일까지 ERD 과제 내래",
+    idle: ["버튼을 누르고 말하세요", "말하는 동안 받아쓴 내용에 글자가 바로 적혀요"],
   },
   lecture: {
     desc: "수업 내내 켜 두면 10분마다 글로 받아쓰고, 끝나면 AI가 요약해 드려요.",
-    placeholder: "녹음 버튼을 누르고 강의를 켜 두세요. 10분마다 받아쓴 글이 여기에 쌓여요",
+    placeholder: "녹음을 시작하고 강의를 켜 두세요. 10분마다 받아쓴 글이 여기에 쌓여요",
     idle: ["버튼을 누르면 녹음이 시작돼요", "수업이 끝날 때까지 켜 두면 10분마다 글자로 바뀌어요"],
   },
 };
@@ -34,6 +34,8 @@ function updateAnalyze() {
   const n = textarea.value.trim().length;
   $("char-count").textContent = session || rec ? "받아쓰는 중…" : `${n.toLocaleString()}자`;
   if (!analyzeBtn.classList.contains("loading")) analyzeBtn.disabled = !n || !!(session || rec || pending);
+  // 버튼이 왜 꺼져 있는지 옆에 한 줄로 알려 준다
+  $("analyze-hint").textContent = n ? (session || rec || pending ? "받아쓰기가 끝나면 정리할 수 있어요" : "") : "말하거나 입력하면 정리할 수 있어요";
 }
 textarea.addEventListener("input", updateAnalyze);
 

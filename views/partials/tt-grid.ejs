@@ -27,11 +27,13 @@
         <div class="tt-cell <%= d === todayDow ? 'today' : '' %>" style="grid-column: <%= i + 2 %>; grid-row: <%= (h - from) * 2 + 2 %> / span 2"></div>
       <% }) %>
     <% } %>
-    <% slots.filter((x) => days.includes(x.day_of_week)).forEach((x) => { const range = x.start_time.slice(0, 5) + '~' + x.end_time.slice(0, 5); %>
-      <a class="tt-slot" href="/subjects/<%= x.subject_id %>" style="--c: <%= x.color %>; grid-column: <%= days.indexOf(x.day_of_week) + 2 %>; grid-row: <%= row(toMin(x.start_time)) %> / <%= row(toMin(x.end_time)) %>"
+    <% slots.filter((x) => days.includes(x.day_of_week)).forEach((x) => { const range = x.start_time.slice(0, 5) + '~' + x.end_time.slice(0, 5);
+         // 30분 이하 수업은 세 줄이 들어갈 높이가 안 돼서 시간·강의실을 한 줄로 합친다
+         const short = toMin(x.end_time) - toMin(x.start_time) <= 30; %>
+      <a class="tt-slot<%= short ? ' short' : '' %>" href="/subjects/<%= x.subject_id %>" style="--c: <%= x.color %>; grid-column: <%= days.indexOf(x.day_of_week) + 2 %>; grid-row: <%= row(toMin(x.start_time)) %> / <%= row(toMin(x.end_time)) %>"
          aria-label="<%= x.name %> <%= TT_WEEK[x.day_of_week] %>요일 <%= range %>">
         <b><%= x.name %></b>
-        <% if (compact) { %><span><%= range %><%= x.room ? ' · ' + x.room : '' %></span>
+        <% if (compact || short) { %><span><%= range %><%= x.room ? ' · ' + x.room : '' %></span>
         <% } else { %><span><%= range %></span><% if (x.room) { %><span><%= x.room %></span><% } %><% } %>
       </a>
     <% }) %>

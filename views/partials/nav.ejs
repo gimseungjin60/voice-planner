@@ -1,23 +1,38 @@
 <%
+  // 주 메뉴는 매일 쓰는 5개만. 음성 메모는 오른쪽 마이크 버튼, 리포트·연동·관리자는 프로필 메뉴로
   const links = [
-    ["/", "대시보드"], ["/memo", "음성 메모"], ["/memos", "메모"], ["/tasks", "할 일"],
-    ["/timetable", "시간표"], ["/report", "리포트"], ["/inbox", "받은 편지함"], ["/settings", "연동"],
+    ["/", "대시보드", "i-home"], ["/tasks", "할 일", "i-checklist"], ["/timetable", "시간표", "i-calendar"],
+    ["/memos", "메모", "i-note"], ["/inbox", "받은 편지함", "i-mail"],
   ];
-  if (user.role === "admin") links.push(["/admin", "관리자"]);
+  const more = [["/report", "주간 리포트"], ["/settings", "연동 설정"]];
+  if (user.role === "admin") more.push(["/admin", "관리자"]);
   // 지금 화면: 과목 모아보기는 시간표, 메모 상세는 메모로 표시
   const current = path.startsWith("/subjects/") ? "/timetable" : path.startsWith("/memos") ? "/memos" : path;
   const isActive = (href) => (href === "/" ? current === "/" : current === href || current.startsWith(href + "/"));
+  const moreActive = more.some(([href]) => isActive(href));
 %>
 <header class="gnav">
-  <a class="brand" href="/"><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span>보이스 플래너</a>
+  <a class="brand" href="/"><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span><span class="brand-name">보이스 플래너</span></a>
   <nav class="gnav-links" aria-label="주 메뉴">
-    <% links.forEach(([href, label]) => { %>
-      <a href="<%= href %>" <%- isActive(href) ? 'aria-current="page"' : '' %>><%= label %><% if (href === "/inbox") { %><span class="nav-badge" id="nav-inbox-badge"></span><% } %></a>
+    <% links.forEach(([href, label, icon]) => { %>
+      <a href="<%= href %>" <%- isActive(href) ? 'aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#<%= icon %>"/></svg><span class="lbl"><%= label %></span><% if (href === "/inbox") { %><span class="nav-badge" id="nav-inbox-badge"></span><% } %></a>
     <% }) %>
   </nav>
   <div class="gnav-user">
-    <span class="avatar" aria-hidden="true"><%= (user.user_name || "?").charAt(0) %></span>
-    <span class="name"><%= user.user_name %></span>
-    <button class="logout" id="logout-btn" type="button">로그아웃</button>
+    <a class="btn sm gnav-memo" href="/memo" <%- isActive("/memo") ? 'aria-current="page"' : '' %>><svg class="i sm" aria-hidden="true"><use href="#i-mic"/></svg><span class="lbl">음성 메모</span></a>
+    <details class="user-menu<%= moreActive ? ' on' : '' %>">
+      <summary aria-label="내 메뉴">
+        <span class="avatar" aria-hidden="true"><%= (user.user_name || "?").charAt(0) %></span>
+        <span class="name"><%= user.user_name %></span>
+        <svg class="i sm chev" aria-hidden="true"><use href="#i-chevron"/></svg>
+      </summary>
+      <div class="menu" role="menu">
+        <p class="menu-who"><b><%= user.user_name %></b><span><%= user.email %></span></p>
+        <% more.forEach(([href, label]) => { %>
+          <a role="menuitem" href="<%= href %>" <%- isActive(href) ? 'aria-current="page"' : '' %>><%= label %></a>
+        <% }) %>
+        <button role="menuitem" class="logout" id="logout-btn" type="button">로그아웃</button>
+      </div>
+    </details>
   </div>
 </header>
