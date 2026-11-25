@@ -85,8 +85,8 @@
   --header-h: 64px;
   --header-pad-x: 28px;
   --page-pad-x: clamp(24px, 3vw, 56px); /* 본문 좌우 여백 (1280px에서 약 40px) */
-  --content-narrow: 880px;
-  --content-settings: 760px;
+  --content-wide: 1280px; /* 대시보드·할 일·시간표·리포트·관리자 */
+  --content-narrow: 960px; /* 메모 목록·받은 편지함·연동 (한 줄 목록·폼) */
   --fab-gap: 28px;
 
   --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -427,15 +427,14 @@ a:hover {
 
 /* ---------- 페이지 틀 ---------- */
 .container {
-  /* 전체 폭: 화면이 넓으면 그만큼 넓게 쓰고, 좌우 여백만 화면 크기에 맞춰 늘린다 */
+  /* 본문 폭은 두 가지뿐: 넓은 화면(1280)과 목록·폼 화면(960). 큰 모니터에서도 가운데에 모은다 */
+  max-width: calc(var(--content-wide) + 2 * var(--page-pad-x));
   margin: 0 auto;
   padding: 32px var(--page-pad-x) 120px;
 }
-.container.narrow {
-  max-width: calc(var(--content-narrow) + 2 * var(--page-pad-x));
-}
+.container.narrow,
 .container.settings {
-  max-width: calc(var(--content-settings) + 2 * var(--page-pad-x));
+  max-width: calc(var(--content-narrow) + 2 * var(--page-pad-x));
 }
 .page-head {
   display: flex;
@@ -677,7 +676,7 @@ a:hover {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   gap: 20px;
-  align-items: start;
+  align-items: stretch; /* 나란히 놓인 카드는 아래 끝을 맞춘다 */
 }
 .grid-2.even {
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
