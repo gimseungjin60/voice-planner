@@ -7,14 +7,17 @@
    const pageUrl = (p) => `/memos?page=${p}${subject ? '&subject=' + subject : ''}`; %>
 <main class="container narrow">
   <div class="page-head">
-    <h1>메모 <span class="count num"><%= list.total %>개</span></h1>
-    <nav class="filter-chips" aria-label="과목 필터">
-      <a href="/memos" class="<%= subject ? '' : 'active' %>" <%- subject ? '' : 'aria-current="page"' %>>모든 과목</a>
-      <% subjects.forEach((s) => { const on = subject === s.subject_id; %>
-        <a href="/memos?subject=<%= s.subject_id %>" data-c style="--c: <%= s.color %>" class="<%= on ? 'active' : '' %>" <%- on ? 'aria-current="page"' : '' %>><%= s.name %></a>
-      <% }) %>
-    </nav>
+    <div>
+      <h1>메모 <span class="count num"><%= list.total %>개</span></h1>
+      <p>말로 남긴 메모와 강의 녹음을 AI 요약으로 모아 봐요.</p>
+    </div>
   </div>
+  <nav class="filter-chips board-filter" aria-label="과목 필터">
+    <a href="/memos" class="<%= subject ? '' : 'active' %>" <%- subject ? '' : 'aria-current="page"' %>>모든 과목</a>
+    <% subjects.forEach((s) => { const on = subject === s.subject_id; %>
+      <a href="/memos?subject=<%= s.subject_id %>" data-c style="--c: <%= s.color %>" class="<%= on ? 'active' : '' %>" <%- on ? 'aria-current="page"' : '' %>><%= s.name %></a>
+    <% }) %>
+  </nav>
 
   <% if (!list.items.length) { %>
     <div class="card empty">
@@ -26,7 +29,9 @@
   <% } else { %>
     <div class="list-card list">
       <% list.items.forEach((m) => { const lecture = m.memo_type === 'lecture';
-           const head = m.summary ? m.summary.split('\n')[0].replace(/^[•★]\s*/, '') : `“${m.transcript.slice(0, 40)}${m.transcript.length > 40 ? '…' : ''}”`; %>
+           // 제목 = AI 요약 첫 줄. 과목은 칩으로 따로 보이니 '[과목]', '과목:' 접두어는 뗀다. 요약이 없으면 원문 40자
+           const stripSubject = (t) => t.replace(/^\[[^\]]*\]\s*/, '').replace(m.subject_name ? new RegExp('^' + m.subject_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\s*[:·-]\\s*|\\s+)') : /^$/, '');
+           const head = m.summary ? stripSubject(m.summary.split('\n')[0].replace(/^[•★\-]\s*/, '')) || m.summary.split('\n')[0] : `${m.transcript.slice(0, 40)}${m.transcript.length > 40 ? '…' : ''}`; %>
         <a class="row" href="/memos/<%= m.memo_id %>">
           <span class="tile"><svg class="i"><use href="#i-<%= lecture ? 'lecture' : 'mic' %>"/></svg></span>
           <div class="row-main">
@@ -35,7 +40,7 @@
               <span><%= lecture ? '강의 녹음' : '짧은 메모' %></span><span>·</span>
               <% if (m.subject_name) { %><span class="chip" style="--c: <%= m.subject_color %>"><%= m.subject_name %></span><% } else { %><span class="chip none">과목 없음</span><% } %>
               <span>·</span><span class="num"><%= when(m.created_at) %></span>
-              <% if (!m.summary) { %><span class="badge" style="height: 22px">요약 전 · 원문</span><% } %>
+              <% if (!m.summary) { %><span class="badge" style="height: 22px">요약 전</span><% } %>
             </div>
           </div>
           <div class="row-end"><span class="dur"><%= dur(m.duration_sec) %></span><svg class="i chev" aria-hidden="true"><use href="#i-chevron"/></svg></div>
