@@ -63,14 +63,15 @@ function ask(message, okLabel = "확인") {
 }
 
 // 'YYYY-MM-DD HH:mm:ss'(한국 시간) → { label: "D-3 · 11/25 23:59", short: "D-3", cls }
-// D-숫자는 달력 날짜 차이, 색은 남은 시간(지남·24시간 미만 빨강, 72시간 미만 주황, 그 외 회색)
+// D-숫자는 달력 날짜 차이, 색은 남은 시간(24시간 미만 빨강, 72시간 미만 주황, 그 외 회색 — 명세 6번)
+// 이미 지난 마감은 빨강 위에 due-over를 더해 진하게 채운다 (임박과 지남을 구분)
 function dueInfo(due) {
   if (!due) return { label: "마감 없음", short: "-", cls: "" };
   const ms = Date.parse(due.replace(" ", "T").slice(0, 16) + ":00+09:00") - Date.now();
   const todayKst = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
   const days = Math.round((Date.parse(due.slice(0, 10)) - Date.parse(todayKst)) / 86400000);
   const short = ms < 0 ? "지남" : days === 0 ? "D-day" : `D-${days}`;
-  const cls = ms < 86400000 ? "due-red" : ms < 3 * 86400000 ? "due-orange" : "";
+  const cls = ms < 0 ? "due-red due-over" : ms < 86400000 ? "due-red" : ms < 3 * 86400000 ? "due-orange" : "";
   return { label: `${short} · ${md(due)} ${due.slice(11, 16)}`, short, cls };
 }
 

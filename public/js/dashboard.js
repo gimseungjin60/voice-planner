@@ -23,7 +23,7 @@ async function loadSummary() {
   if (s.nearest) {
     const { short, cls } = dueInfo(s.nearest.due_at);
     $("sum-nearest").textContent = short;
-    $("sum-nearest").classList.toggle("red", cls === "due-red");
+    $("sum-nearest").classList.toggle("red", cls.includes("due-red"));
     $("sum-nearest-title").textContent = `${s.nearest.title} · ${hm(s.nearest.due_at)}`;
   } else {
     $("sum-nearest").textContent = "없음";

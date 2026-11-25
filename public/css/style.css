@@ -882,10 +882,11 @@ a.row {
   line-height: 1;
   white-space: nowrap;
 }
-/* 과목 칩: 바탕은 과목색 옅게, 점은 원색, 글자는 항상 --ink */
+/* 과목 칩: 테두리 + 과목색 점. 바탕을 칠하지 않아 마감·완료 칩(채운 모양)과 색이 겹쳐도 구분된다 */
 .chip {
-  background: color-mix(in srgb, var(--c, #8e8e93) 18%, #fff);
-  color: var(--ink);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink-2);
   font-weight: 500;
 }
 .chip::before {
@@ -896,8 +897,7 @@ a.row {
   background: var(--c, var(--gray-dot));
 }
 .chip.none {
-  background: var(--fill-1);
-  color: var(--ink-2);
+  color: var(--ink-3);
 }
 .chip.none::before {
   background: var(--gray-dot-2);
@@ -924,6 +924,11 @@ a.row {
 .due.due-red {
   background: var(--red-tint);
   color: var(--red);
+}
+/* 이미 지난 마감: 24시간 이내(옅은 빨강)와 모양으로 구분되게 진한 빨강으로 채운다 */
+.due.due-over {
+  background: var(--red);
+  color: #fff;
 }
 .due.due-orange {
   background: var(--orange-tint);
