@@ -74,7 +74,7 @@
             </li>
           <% }) %>
         </ul>
-        <p class="fine" style="margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line-3)">합계 <b class="num" style="color: var(--ink)"><%= doneDue %>/<%= total %></b> · 남은 마감 <%= total - doneDue %>개</p>
+        <p class="fine sum-line">합계 <b class="num"><%= doneDue %>/<%= total %></b> · 남은 마감 <%= total - doneDue %>개</p>
       <% } %>
     </section>
   </div>
@@ -86,7 +86,7 @@
     <% } else { %>
       <div class="list-card list">
         <% report.completed.forEach((t) => { %>
-          <div class="row" style="min-height: 52px">
+          <div class="row">
             <span class="check on" aria-hidden="true"></span>
             <div class="row-main"><div class="row-title"><%= t.title %></div></div>
             <span class="fine num"><%= t.subject_name || '과목 없음' %> · <%= md(t.completed_at) %> <%= t.completed_at.slice(11, 16) %> 완료</span>
