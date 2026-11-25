@@ -153,3 +153,6 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 Spring Boot + Spring AI로 MCP 서버를 만들어 같은 DB에 연결.
 도구: get_today_tasks, add_task, get_timetable, summarize_week (1차 음성 비서 도구와 같은 이름·입출력으로 맞춤).
 Claude Desktop에서 "이번 주 마감 정리해줘"가 되는 것이 목표. 노션 양방향 동기화, 다국어 강의 노트도 2차 후보.
+
+## 비전 후보 (2026-11-26 결정, 지금은 구현하지 않음)
+- **메일 근거 문장**: 받은 편지함 할 일 후보 아래에 AI가 근거로 삼은 메일 원문 한 줄(예: "리포트는 12월 3일 23:59까지 LMS에 올려 주세요")을 함께 보여줘, 메일을 열지 않고 마감을 확인. `inbox_items.snippet` 컬럼 추가가 필요하므로 스키마 변경과 함께 진행.
