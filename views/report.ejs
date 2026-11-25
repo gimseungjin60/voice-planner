@@ -9,35 +9,41 @@
    // 오늘이 이번 주 몇 번째 날인지 (한국 시간). 아직 안 온 날은 "–"
    const todayYmd = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
    const todayIdx = Math.round((Date.parse(todayYmd) - Date.parse(report.from.slice(0, 10))) / 86400000);
-   const top = Math.max(2, Math.ceil(best / 2) * 2); // 눈금 0 · top/2 · top %>
+   const top = Math.max(2, Math.ceil(best / 2) * 2); // 눈금 0 · top/2 · top
+   // 완료 기록이 있는 날이 3일 미만이면 '가장 열심히 한 날'은 의미가 없어 남은 마감으로 바꾼다
+   const activeDays = report.daily.filter((n) => n > 0).length; %>
 <main class="container">
   <div class="page-head">
     <div>
-      <h1>주간 리포트 <span class="sub num">· <%= md(report.from) %> ~ <%= md(report.to) %></span></h1>
+      <h1>주간 리포트 <span class="count num"><%= md(report.from) %> ~ <%= md(report.to) %></span></h1>
       <p>이번 주(월~일)에 얼마나 해냈는지 돌아봐요.<%= todayIdx === 0 ? ' 월요일이라 아직 시작이에요.' : '' %></p>
     </div>
   </div>
 
   <div class="stat-grid">
-    <div class="stat"><p class="label">이번 주 완료</p><p class="value"><%= report.done %></p>
-      <p class="hint">지난주 <%= report.lastDone %>개 · <span class="<%= diff > 0 ? 'up' : diff < 0 ? 'down' : '' %>" style="font-weight: 600; color: <%= diff > 0 ? 'var(--green-text)' : diff < 0 ? 'var(--red)' : 'inherit' %>"><%= diff > 0 ? `▲ ${diff}` : diff < 0 ? `▼ ${-diff}` : '같아요' %></span></p></div>
-    <div class="stat"><p class="label">이번 주 마감 달성</p><p class="value"><%= rate %>%</p><p class="hint"><%= total %>개 중 <%= doneDue %>개 완료</p>
+    <div class="stat"><p class="label">이번 주에 끝낸 일</p><p class="value"><%= report.done %></p>
+      <p class="hint">완료한 날 기준 · 지난주 <%= report.lastDone %>개 · <span class="<%= diff > 0 ? 'up' : diff < 0 ? 'down' : '' %>" style="font-weight: 600; color: <%= diff > 0 ? 'var(--green-text)' : diff < 0 ? 'var(--red)' : 'inherit' %>"><%= diff > 0 ? `▲ ${diff}` : diff < 0 ? `▼ ${-diff}` : '같아요' %></span></p></div>
+    <div class="stat"><p class="label">이번 주 마감 지킴</p><p class="value"><%= rate %>%</p><p class="hint">마감이 이번 주인 <%= total %>개 중 <%= doneDue %>개</p>
       <div class="meter" role="img" aria-label="마감 달성 <%= rate %>%"><span style="width: <%= rate %>%"></span></div></div>
     <div class="stat"><p class="label">지난 마감</p><p class="value <%= report.overdue ? 'red' : '' %>"><%= report.overdue %></p>
       <% if (report.overdue) { %><p class="hint down"><%= report.overdue %>개가 밀렸어요</p>
       <% } else { %><p class="hint up"><svg class="i sm" aria-hidden="true"><use href="#i-check"/></svg> 밀린 마감이 없어요</p><% } %></div>
-    <div class="stat"><p class="label">가장 열심히 한 날</p><p class="value"><%= best ? DAYS[report.daily.indexOf(best)] + '요일' : '–' %></p><p class="hint"><%= best ? best + '개 완료' : '아직 없어요' %></p></div>
+    <% if (activeDays >= 3) { %>
+      <div class="stat"><p class="label">가장 많이 끝낸 날</p><p class="value"><%= DAYS[report.daily.indexOf(best)] %>요일</p><p class="hint"><%= best %>개 완료</p></div>
+    <% } else { %>
+      <div class="stat"><p class="label">이번 주 남은 마감</p><p class="value"><%= total - doneDue %></p><p class="hint">마감이 이번 주인 할 일 중 아직 안 끝낸 것</p></div>
+    <% } %>
   </div>
 
   <div class="grid-2 even">
     <section class="card">
-      <div class="card-head"><h2>요일별 완료</h2><span class="fine">막대에 올리면 자세히 보여요</span></div>
+      <div class="card-head"><h2>요일별로 끝낸 일</h2><span class="fine">완료한 날 기준</span></div>
       <div class="chart" aria-hidden="true">
         <div class="yaxis"><span><%= top %></span><span><%= top / 2 %></span><span>0</span></div>
         <% report.daily.forEach((n, i) => { const future = i > todayIdx; %>
           <div class="col <%= future ? 'future' : '' %> <%= i === todayIdx ? 'today' : '' %>" title="<%= DAYS[i] %>요일 · <%= future ? '아직 오지 않은 날' : n + '개 완료' %>">
             <span class="n"><%= future ? '–' : n %></span>
-            <span class="bar" style="height: <%= future ? 0 : (n / top) * 170 %>px"></span>
+            <span class="bar" style="height: <%= future ? 0 : (n / top) * 140 %>px"></span>
             <span class="x"><%= DAYS[i] %><% if (i === todayIdx) { %><small>오늘</small><% } %></span>
           </div>
         <% }) %>
@@ -49,7 +55,7 @@
     </section>
 
     <section class="card">
-      <div class="card-head"><h2>과목별 마감 달성</h2><span class="fine">이번 주 마감 기준</span></div>
+      <div class="card-head"><h2>과목별 마감 지킴</h2><span class="fine">마감이 이번 주인 할 일 기준</span></div>
       <% if (!report.bySubject.length) { %>
         <div class="empty"><div class="empty-icon"><svg class="i"><use href="#i-chart"/></svg></div><p class="title">이번 주 마감인 할 일이 없어요</p></div>
       <% } else { %>
