@@ -198,14 +198,16 @@ app.get("/api/tasks/summary", async (req, res) => {
   const t0 = today();
   const week = addDays(t0, 7);
   const open = tasks.filter((t) => t.status !== "done").sort((a, b) => (a.due_at || "9").localeCompare(b.due_at || "9"));
-  const REASON = ["오늘 밤 마감이라 가장 급해요", "이미 진행 중이라 이어서 끝내기 좋아요", "우선순위가 높고 마감이 다가와요"];
+  // 이유 문구는 마감 상태에 맞춘다 (지난 마감에 "오늘 밤 마감"이라 쓰지 않게)
+  const reasonOf = (t, i) =>
+    t.due_at && t.due_at < now ? "마감이 지났어요. 먼저 끝내요" : ["오늘 안에 끝내야 해요", "이미 진행 중이라 이어서 끝내기 좋아요", "우선순위가 높고 마감이 다가와요"][i];
   const top = [open.find((t) => t.due_at?.startsWith(t0)), open.find((t) => t.status === "doing"), open.find((t) => t.priority === "high")]
     .filter((t, i, a) => t && a.indexOf(t) === i)
     .slice(0, 3)
-    .map((t, i) => ({ ...taskOut(t), reason: REASON[i] }));
+    .map((t, i) => ({ ...taskOut(t), reason: reasonOf(t, i) }));
   ok(res, {
-    today: open.filter((t) => t.due_at?.startsWith(t0)).length,
-    week: open.filter((t) => t.due_at && t.due_at.slice(0, 10) >= t0 && t.due_at.slice(0, 10) <= week).length,
+    today: open.filter((t) => t.due_at?.startsWith(t0) && t.due_at >= now).length,
+    week: open.filter((t) => t.due_at && t.due_at >= now && t.due_at.slice(0, 10) <= week).length,
     overdue: open.filter((t) => t.due_at && t.due_at < now).length,
     nearest: open.find((t) => t.due_at && t.due_at >= now) ? taskOut(open.find((t) => t.due_at && t.due_at >= now)) : null,
     top,

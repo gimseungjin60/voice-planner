@@ -3485,6 +3485,14 @@ dialog[open] > * {
   margin-top: 28px;
 }
 
+/* 대시보드 동기화: 자주 누르지 않는 보조 동작이라 글자 버튼으로 낮춘다 */
+.today-actions .btn.sync {
+  color: var(--ink-2);
+}
+.today-actions .btn.sync:hover {
+  color: var(--ink);
+}
+
 /* ---------- 좁은 화면: 가로 스크롤만 안 생기게 ---------- */
 @media (max-width: 1100px) {
   .dash-top,

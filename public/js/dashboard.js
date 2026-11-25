@@ -17,8 +17,10 @@ async function loadSummary() {
   const s = r.data;
   $("sum-today").textContent = s.today;
   $("sum-week").textContent = s.week;
-  $("sum-overdue").textContent = s.overdue;
-  $("hero-due").innerHTML = ` · 오늘 마감 <b class="${s.today ? "red" : ""}">${s.today}개</b>`;
+  // 지난 마감은 제목 줄에서만 한 번 알린다. 없으면 오늘 남은 마감 수를 보여 준다
+  $("hero-due").innerHTML = s.overdue
+    ? ` · 지난 마감 <b class="red">${s.overdue}개</b>`
+    : ` · 오늘 남은 마감 <b>${s.today}개</b>`;
 
   if (s.nearest) {
     const { short, cls } = dueInfo(s.nearest.due_at);
@@ -73,8 +75,7 @@ function itemHtml(it, now, isNext) {
   const color = it.subject_color ? `--c:${esc(it.subject_color)}` : "";
   let right = "";
   if (task) right = done ? `<span class="due done">완료</span>` : `<span class="due ${dueInfo(it.due_at).cls}">${esc(dueInfo(it.due_at).label)}</span>`;
-  else if (past) right = `<span class="tl-end">끝남</span>`;
-  else if (isNext) right = soon(start, now);
+  else if (isNext && !past) right = soon(start, now);
   if (!right && it.kind === "event" && it.provider === "google")
     right = `<span class="badge"><svg class="i" aria-hidden="true"><use href="#i-calendar"/></svg>구글</span>`;
   const body = task

@@ -90,11 +90,12 @@ router.get("/summary", async (req, res, next) => {
     const weekEnd = pool.kst(new Date(Date.now() + 7 * 86400000)).slice(0, 10);
     const [[counts]] = await pool.query(
       `SELECT
-         SUM(DATE(due_at) = ?) AS today,
-         SUM(DATE(due_at) BETWEEN ? AND ?) AS week,
+         SUM(DATE(due_at) = ? AND due_at >= ?) AS today,
+         SUM(DATE(due_at) BETWEEN ? AND ? AND due_at >= ?) AS week,
          SUM(due_at < ?) AS overdue
        FROM tasks WHERE user_id = ? AND status <> 'done'`,
-      [today, today, weekEnd, now, userId],
+      // 오늘·이번 주는 아직 남은 마감만 센다. 이미 지난 것은 overdue 하나로만 보여 숫자가 겹치지 않게
+      [today, now, today, weekEnd, now, now, userId],
     );
     const [open] = await pool.query(
       `${TASK_SELECT} WHERE t.user_id = ? AND t.status <> 'done'
@@ -105,7 +106,11 @@ router.get("/summary", async (req, res, next) => {
     let top = await ai.prioritize({ userId, tasks: open, now });
     const aiOk = top !== null;
     // AI 실패 시 마감 가까운 순으로 대체
-    if (!aiOk) top = open.slice(0, 3).map((t) => ({ ...t, reason: t.due_at ? "마감이 가까워요" : "아직 마감이 없어요" }));
+    if (!aiOk)
+      top = open.slice(0, 3).map((t) => ({
+        ...t,
+        reason: !t.due_at ? "아직 마감이 없어요" : t.due_at < now ? "마감이 지났어요. 먼저 끝내요" : "마감이 가까워요",
+      }));
     res.json({
       ok: true,
       data: {
