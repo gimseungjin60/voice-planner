@@ -11,7 +11,7 @@ try {
   const mysql = require(path.join(dir, "node_modules/mysql2"));
   const c = mysql.createConnection({ host: process.env.DB_HOST, port: process.env.DB_PORT, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: process.env.DB_NAME });
   c.query("SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema = DATABASE()", (err, rows) => {
-    lines.push(err ? `- DB 연결 실패: ${err.code}` : `- DB 연결 OK, 테이블 ${rows[0].n}개 (8개가 정상)`);
+    lines.push(err ? `- DB 연결 실패: ${err.code}` : `- DB 연결 OK, 테이블 ${rows[0].n}개 (schema.sql 기준 10개가 정상)`);
     c.end();
     finish();
   });
