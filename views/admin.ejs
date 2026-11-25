@@ -8,7 +8,7 @@
     </div>
   </div>
 
-  <div class="stat-grid">
+  <div class="stat-grid strip">
     <div class="stat"><p class="label">가입자</p><p class="value"><%= stats.users.toLocaleString() %></p></div>
     <div class="stat"><p class="label">음성 메모</p><p class="value"><%= stats.memos.toLocaleString() %></p></div>
     <div class="stat"><p class="label">할 일</p><p class="value"><%= stats.tasks.toLocaleString() %></p></div>
@@ -24,12 +24,12 @@
         <tbody>
           <% users.forEach((u) => { const me = u.user_id === user.user_id; %>
             <tr>
-              <td><span class="who"><span class="avatar" aria-hidden="true"><%= u.user_name.charAt(0) %></span><%= u.user_name %><% if (me) { %><span class="fine" style="font-weight: 400">나</span><% } %></span></td>
+              <td><span class="who"><span class="avatar" aria-hidden="true"><%= u.user_name.charAt(0) %></span><%= u.user_name %><% if (me) { %><span class="fine">나</span><% } %></span></td>
               <td><%= u.email %></td>
               <td><span class="badge <%= u.role === 'admin' ? 'ink' : '' %>"><%= u.role === 'admin' ? '관리자' : '일반' %></span></td>
               <td class="n"><%= u.memo_count %></td><td class="n"><%= u.task_count %></td>
               <td class="num"><%= ymd(u.created_at) %></td>
-              <td style="text-align: right"><% if (me) { %><span class="fine">본인</span><% } else { %><button class="btn line sm" data-delete="<%= u.user_id %>" data-name="<%= u.user_name %>">삭제</button><% } %></td>
+              <td class="end"><% if (me) { %><span class="fine">본인</span><% } else { %><button class="btn line sm" data-delete="<%= u.user_id %>" data-name="<%= u.user_name %>">삭제</button><% } %></td>
             </tr>
           <% }) %>
         </tbody>

@@ -40,7 +40,7 @@
               <span><%= lecture ? '강의 녹음' : '짧은 메모' %></span><span>·</span>
               <% if (m.subject_name) { %><span class="chip" style="--c: <%= m.subject_color %>"><%= m.subject_name %></span><% } else { %><span class="chip none">과목 없음</span><% } %>
               <span>·</span><span class="num"><%= when(m.created_at) %></span>
-              <% if (!m.summary) { %><span class="badge" style="height: 22px">요약 전</span><% } %>
+              <% if (!m.summary) { %><span class="badge sm">요약 전</span><% } %>
             </div>
           </div>
           <div class="row-end"><span class="dur"><%= dur(m.duration_sec) %></span><svg class="i chev" aria-hidden="true"><use href="#i-chevron"/></svg></div>
