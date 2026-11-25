@@ -27,13 +27,20 @@ function itemHtml(it) {
   let body;
   if (it.status === "pending")
     body = `<div class="found">
-        <div class="found-label">AI가 찾은 할 일 · 고쳐서 추가할 수 있어요${it.ai_due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}</div>
-        <div class="found-meta">
+        <div class="found-label">AI가 찾은 할 일</div>
+        <div class="found-read">
+          <b class="grow">${esc(it.ai_title)}</b>
+          ${it.ai_due_at ? `<span class="due ${cls}">${esc(label)}</span>` : `<span class="fine">마감 없음</span>`}
+          ${chip(it.subject_name, it.subject_color, true)}
+        </div>
+        <div class="found-meta" hidden>
           <input class="f-title" value="${esc(it.ai_title)}" maxlength="200" aria-label="할 일 제목" />
           <input class="f-due pill" type="datetime-local" value="${due}" aria-label="마감" />
           <select class="f-subject pill" aria-label="과목">${subjectOptions}</select>
         </div>
         <div class="mail-actions">
+          <button class="btn text" data-edit><svg class="i sm" aria-hidden="true"><use href="#i-pencil"/></svg>수정</button>
+          <span class="grow"></span>
           <button class="btn line" data-ignore="${it.item_id}">무시</button>
           <button class="btn" data-accept="${it.item_id}"><svg class="i sm" aria-hidden="true"><use href="#i-plus"/></svg>할 일로</button>
         </div></div>`;
@@ -70,6 +77,7 @@ async function load() {
   const { items, counts, last_synced_at } = r.data;
   document.getElementById("last-sync").textContent = `마지막 확인 ${ago(last_synced_at)}`;
   document.querySelectorAll("[data-n]").forEach((el) => (el.textContent = counts[el.dataset.n] ?? 0));
+  document.getElementById("pending-count").textContent = counts.pending ? `새 후보 ${counts.pending}개` : "";
   if (!items.length) {
     const [title, desc] = EMPTY[status];
     list.innerHTML = `<div class="empty-col" style="padding: 40px 24px"><p class="title" style="color: var(--ink); font-size: 15px; font-weight: 600">${title}</p>${desc ? `<p>${desc}</p>` : ""}</div>`;
@@ -86,6 +94,15 @@ list.addEventListener("click", async (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   const cardEl = b.closest(".mail-card");
+  if (b.hasAttribute("data-edit")) {
+    // 읽기 모드 → 고치기 모드. 고친 값은 [할 일로]에서 그대로 쓴다
+    const meta = cardEl.querySelector(".found-meta");
+    meta.hidden = false;
+    cardEl.querySelector(".found-read").hidden = true;
+    b.hidden = true;
+    meta.querySelector(".f-title").focus();
+    return;
+  }
   if (b.dataset.accept) {
     const body = {
       title: cardEl.querySelector(".f-title").value,

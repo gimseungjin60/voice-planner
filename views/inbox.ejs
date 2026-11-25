@@ -1,16 +1,14 @@
 <%- include('partials/header') %>
 <main class="container narrow">
-  <div class="page-head" style="align-items: center">
-    <h1>받은 편지함</h1>
+  <div class="page-head">
+    <div>
+      <h1>받은 편지함 <span class="count num" id="pending-count"></span></h1>
+      <p>학교 메일에서 AI가 찾은 과제·시험·마감이에요. 확인하고 할 일로 옮기세요.</p>
+    </div>
     <div class="actions">
       <span class="fine" id="last-sync"></span>
       <button class="btn line" id="mail-sync"><svg class="i sm" aria-hidden="true"><use href="#i-sync"/></svg><span>메일 확인</span></button>
     </div>
-  </div>
-
-  <div class="banner" style="align-items: flex-start; padding: 16px 18px; margin-bottom: 20px">
-    <svg class="i" aria-hidden="true" style="margin-top: 2px"><use href="#i-mail"/></svg>
-    <div><b>메일에서 찾은 과제</b><p>학교 메일에서 과제·시험·마감을 AI가 찾아 모았어요. 확인하고 할 일로 옮기세요.</p></div>
   </div>
 
   <div class="tabs" role="tablist" id="inbox-filter" aria-label="후보 상태">
