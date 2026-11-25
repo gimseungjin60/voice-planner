@@ -5,15 +5,16 @@
       <h1>음성 메모</h1>
       <p id="memo-desc">떠오른 할 일을 말로 남기면 AI가 할 일 후보로 정리해 드려요.</p>
     </div>
-    <div class="seg" aria-label="메모 종류">
-      <button class="active" data-type="memo" aria-pressed="true">짧은 메모</button>
-      <button data-type="lecture" aria-pressed="false">강의 녹음</button>
-    </div>
   </div>
 
   <div class="memo-grid">
     <div class="memo-side">
       <section class="recorder" id="mic-area" aria-label="녹음">
+        <%# 녹음 종류는 마이크 바로 위에서 고른다 (누르기 전에 눈에 들어오게) %>
+        <div class="seg recorder-mode" aria-label="메모 종류">
+          <button class="active" data-type="memo" aria-pressed="true">짧은 메모</button>
+          <button data-type="lecture" aria-pressed="false">강의 녹음</button>
+        </div>
         <button class="mic" id="mic-btn" aria-label="녹음 시작"><svg class="i"><use href="#i-mic"/></svg></button>
         <div class="rec-status" id="rec-status">
           <span class="wave hidden" id="wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>
@@ -43,10 +44,11 @@
           <h2 id="live-title" style="font-size: 16px">받아쓴 내용</h2>
           <span class="fine" id="type-help">직접 고쳐 쓸 수 있어요</span>
         </div>
-        <textarea id="transcript" aria-labelledby="live-title" placeholder="데이터베이스 교수님이 다음 주 화요일까지 ERD 과제 내래"></textarea>
+        <textarea id="transcript" aria-labelledby="live-title" placeholder="예: 데이터베이스 교수님이 다음 주 화요일까지 ERD 과제 내래"></textarea>
         <div class="interim" id="interim" aria-live="polite"></div>
         <div class="live-foot">
           <span class="fine num" id="char-count">0자</span>
+          <span class="fine analyze-hint" id="analyze-hint">말하거나 입력하면 정리할 수 있어요</span>
           <button class="btn" id="analyze-btn" disabled><svg class="i" aria-hidden="true"><use href="#i-sort"/></svg><span>AI로 정리하기</span></button>
         </div>
         <div class="error-msg" id="memo-error" role="alert"></div>

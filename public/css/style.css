@@ -2736,6 +2736,19 @@ dialog[open] > * {
   display: flex;
   flex-direction: column;
 }
+/* 예시 문구는 실제 받아쓴 글(.interim, --ink-3)보다 한 단계 옅게 */
+.live textarea::placeholder {
+  color: var(--ink-4);
+}
+.analyze-hint {
+  margin-left: auto;
+}
+.analyze-hint:empty {
+  display: none;
+}
+.recorder-mode {
+  margin-bottom: 24px;
+}
 .live textarea {
   min-height: 136px;
   padding: 0;
