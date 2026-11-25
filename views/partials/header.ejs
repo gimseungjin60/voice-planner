@@ -12,6 +12,13 @@
   <script src="/js/app.js" defer></script>
   <% if (user) { %><script src="/js/voice.js" defer></script><% } %>
 </head>
-<body>
+<%
+  // 화면별 포인트색·아이콘 (style.css "페이지별 포인트"). 과목 모아보기·메모 상세는 상위 화면 것을 따른다
+  const pageKeys = { "/tasks": "tasks", "/timetable": "timetable", "/subjects": "timetable", "/memo": "memo", "/memos": "memos",
+    "/inbox": "inbox", "/report": "report", "/settings": "settings", "/admin": "admin" };
+  const p = locals.path || "";
+  const pageKey = pageKeys[p] || pageKeys["/" + p.split("/")[1]] || "";
+%>
+<body<%- pageKey ? ` class="page-${pageKey}"` : "" %>>
 <%- include('icons') %>
 <% if (user) { %><%- include('nav') %><% } %>
