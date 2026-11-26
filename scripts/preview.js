@@ -24,7 +24,7 @@ const fail = (res, status, error) => res.status(status).json({ ok: false, error 
 
 // ---------- 가짜 데이터 ----------
 const user = { user_id: 2, email: "student@vp.com", user_name: "김학생", role: "admin" };
-const state = { loggedIn: true, google: "connected", notion: false, notionRef: "", googleSynced: minutesAgo(12), seq: 100, pending: null };
+const state = { loggedIn: true, google: "connected", notion: false, notionRef: "", googleSynced: minutesAgo(12), seq: 100, pending: null, share: null };
 
 const subjects = [
   { subject_id: 1, name: "심화응용프로젝트", professor: "류교수", color: "#6C8EF5", schedules: [] },
@@ -63,6 +63,9 @@ let events = [
   { event_id: 2, provider: "google", title: "치과 예약", start_at: at(1, "11:00"), end_at: at(1, "11:30"), location: "학교 앞 치과" },
   { event_id: 3, provider: "google", title: "동아리 정기 모임", start_at: at(2, "18:00"), end_at: at(2, "20:00"), location: null },
   { event_id: 4, provider: "google", title: "팀플 중간 점검", start_at: at(4, "19:00"), end_at: at(4, "20:00"), location: "온라인 (Zoom)" },
+  { event_id: 5, provider: "google", title: "알바", start_at: at(-3, "18:00"), end_at: at(-3, "22:00"), location: null },
+  { event_id: 6, provider: "manual", title: "스터디", start_at: at(-2, "19:00"), end_at: at(-2, "21:00"), location: "중앙도서관" },
+  { event_id: 7, provider: "google", title: "가족 여행", start_at: at(2, "00:00"), end_at: at(3, "00:00"), location: null },
 ];
 
 let memos = [
@@ -95,7 +98,47 @@ app.get(["/login", "/signup"], (req, res) => {
   res.locals.user = null;
   res.render("login", { title: req.path === "/signup" ? "회원가입" : "로그인", mode: req.path.slice(1) });
 });
+// ---------- 일정 공유 (가짜 데이터로 routes/api/share.js의 buildBoard를 그대로 쓴다) ----------
+const shareMod = require("../routes/api/share");
+const SHARE_TOKEN = "demoDemoDemoDemoDemoDemoDemoDemo"; // 32자
+const shareRow = () => state.share && { token: SHARE_TOKEN, ...state.share };
+const boardFor = (monday, level) => {
+  const classes = schedules.map((x) => ({ ...x, name: subj(x.subject_id).name, color: subj(x.subject_id).color }));
+  return shareMod.buildBoard({ classes, events, tasks: tasks.map(taskOut) }, monday, level, kst());
+};
+app.get("/s/:token", (req, res) => {
+  if (req.params.token !== SHARE_TOKEN || !state.share) return res.status(404).render("shared", { title: "링크를 열 수 없어요", user: null, gone: true });
+  const week = shareMod.pickMonday(req.query.w, { limit: true, today: today() });
+  res.render("shared", { title: `${user.user_name}님의 일정`, gone: false, user: null, ownerName: user.user_name, isOwner: req.query.owner === "1", week, board: boardFor(week.monday, state.share.visibility), generatedAt: kst() });
+});
 app.use((req, res, next) => (state.loggedIn || req.path.startsWith("/api") ? next() : res.redirect("/login")));
+app.get("/share", (req, res) => {
+  if (req.query.share === "off") state.share = null;
+  if (["busy", "title", "all"].includes(req.query.share)) state.share = { ...(state.share || { view_count: 3, last_viewed_at: minutesAgo(40) }), visibility: req.query.share };
+  const asFriend = req.query.view === "friend";
+  const week = shareMod.pickMonday(req.query.w, { today: today() });
+  res.render("share", { title: "일정 공유", share: shareMod.shareOut(req, shareRow()), asFriend, week, board: boardFor(week.monday, asFriend ? state.share?.visibility || "busy" : "owner") });
+});
+app.get("/api/share", (req, res) => ok(res, shareMod.shareOut(req, shareRow())));
+app.post("/api/share", (req, res) => {
+  state.share ||= { visibility: req.body?.visibility || "busy", view_count: 0, last_viewed_at: null };
+  ok(res, shareMod.shareOut(req, shareRow()), 201);
+});
+app.patch("/api/share", (req, res) => {
+  if (!state.share) return fail(res, 404, "공유가 꺼져 있어요");
+  state.share.visibility = req.body.visibility;
+  ok(res, shareMod.shareOut(req, shareRow()));
+});
+app.post("/api/events", (req, res) => {
+  const e = { event_id: ++state.seq, provider: "manual", title: req.body.title, start_at: `${req.body.start_at}:00`, end_at: `${req.body.end_at}:00`, location: null };
+  events.push(e);
+  ok(res, e, 201);
+});
+app.post("/api/share/regenerate", (req, res) => ok(res, shareMod.shareOut(req, shareRow())));
+app.delete("/api/share", (req, res) => {
+  state.share = null;
+  ok(res, null);
+});
 
 const classesOn = (ymd) =>
   schedules

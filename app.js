@@ -52,6 +52,7 @@ app.use("/api/timeline", require("./routes/api/timeline"));
 app.use("/api/sync", require("./routes/api/sync"));
 app.use("/api/notion", require("./routes/api/notion"));
 app.use("/api/assistant", require("./routes/api/assistant"));
+app.use("/api/share", require("./routes/api/share"));
 app.use("/auth", require("./routes/oauth"));
 app.use("/", require("./routes/pages"));
 

@@ -10,7 +10,10 @@
       <h1>시간표 <span class="count num"><%= subjects.length %>과목</span></h1>
       <p><%= term %> · 수업 블록을 누르면 과목 모아보기로 가요.</p>
     </div>
-    <button class="btn" id="new-subject"><svg class="i sm" aria-hidden="true"><use href="#i-plus"/></svg>과목 추가</button>
+    <div class="actions">
+      <a class="btn line" href="/share"><svg class="i sm" aria-hidden="true"><use href="#i-link"/></svg>친구에게 공유</a>
+      <button class="btn" id="new-subject"><svg class="i sm" aria-hidden="true"><use href="#i-plus"/></svg>과목 추가</button>
+    </div>
   </div>
 
   <section class="card flush" aria-label="주간 시간표">

@@ -33,6 +33,7 @@ routes/
   api/timeline.js      # /api/timeline 수업+일정+마감 통합
   api/assistant.js     # /api/assistant 음성 비서
   api/notion.js        # /api/notion/export
+  api/share.js         # /api/share 일정 공유 링크 + 주간 보드 데이터 (친구 화면 /s/:token은 pages.js)
 services/ai.js         # Claude 호출은 전부 여기. 라우터에서 SDK 직접 호출 금지
 services/google.js     # 구글 캘린더·Gmail 호출은 전부 여기 (토큰 갱신 포함)
 services/notion.js     # 노션 호출은 전부 여기

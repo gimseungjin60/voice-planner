@@ -4,6 +4,7 @@
 CREATE DATABASE IF NOT EXISTS voiceplanner DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE voiceplanner;
 
+DROP TABLE IF EXISTS share_links;
 DROP TABLE IF EXISTS ai_logs;
 DROP TABLE IF EXISTS inbox_items;
 DROP TABLE IF EXISTS events;
@@ -165,6 +166,18 @@ CREATE TABLE inbox_items (
     FOREIGN KEY (subject_id) REFERENCES subjects(subject_id) ON DELETE SET NULL,
     FOREIGN KEY (task_id)    REFERENCES tasks(task_id)       ON DELETE SET NULL,
     UNIQUE KEY uq_user_message (user_id, provider, external_id)
+);
+
+-- 11. 일정 공유 링크 (친구가 로그인 없이 보는 읽기 전용 주간 일정, 사용자당 1개). 끄면 행 삭제
+CREATE TABLE share_links (
+    share_id       INT AUTO_INCREMENT PRIMARY KEY,
+    user_id        INT NOT NULL UNIQUE,
+    token          CHAR(32) NOT NULL UNIQUE,          -- /s/<token>. 랜덤 24바이트 base64url (추측 불가)
+    visibility     ENUM('busy','title','all') NOT NULL DEFAULT 'busy',  -- 바쁜 시간만 / 수업·일정 제목 / 제목+할 일 마감
+    view_count     INT NOT NULL DEFAULT 0,            -- 친구가 연 횟수 (본인 미리보기는 제외)
+    last_viewed_at DATETIME NULL,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- 링크를 만든(바꾼) 시각
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
 -- ===== 샘플 데이터 =====

@@ -1,0 +1,93 @@
+<%# 한 주(월~일) 일정 보드: 수업 + 일정 + 마감. 일정 공유(내 화면)·공유 링크(친구 화면) 공용
+    필요한 값: board (routes/api/share.js weekBoard 결과). 데스크톱은 시간 격자, 760px 이하는 날짜별 목록 %>
+<% const b = board;
+   const pad = (n) => String(n).padStart(2, "0");
+   const hours = b.to - b.from;
+   const hasTop = b.days.some((d) => d.allDay.length || d.deadlines.length);
+   const hasAllDay = b.days.some((d) => d.allDay.length);
+   const hasDue = b.days.some((d) => d.deadlines.length);
+   const topLabel = hasAllDay && hasDue ? "종일·마감" : hasAllDay ? "종일" : "마감";
+   const blockStyle = (x) => `--s:${x.startMin - b.from * 60};--d:${x.endMin - x.startMin};--lane:${x.lane};--lanes:${x.lanes}${x.color ? `;--c:${x.color}` : ""}`;
+   const blockClass = (x) => ["wb-block", x.kind, b.level === "busy" ? "busy" : "", x.endMin - x.startMin <= 50 ? "short" : "", x.lanes > 1 ? "narrow" : "", x.past ? "past" : ""].filter(Boolean).join(" ");
+   const agenda = (d) => [
+     ...d.allDay.map((x) => ({ type: "allday", sort: -1, x })),
+     ...d.blocks.map((x) => ({ type: "block", sort: x.startMin, x })),
+     ...d.deadlines.map((x) => ({ type: "due", sort: Number(x.time.slice(0, 2)) * 60 + Number(x.time.slice(3)), x })),
+   ].sort((p, q) => p.sort - q.sort); %>
+<div class="wb" style="--hours: <%= hours %>">
+  <div class="wb-row wb-head">
+    <div class="wb-gutter"></div>
+    <% b.days.forEach((d) => { %>
+      <div class="wb-dayhead<%= d.isToday ? ' today' : '' %><%= d.dow === 0 || d.dow === 6 ? ' weekend' : '' %>">
+        <span class="dow"><%= d.label %></span>
+        <b class="num"><%= d.date %></b>
+      </div>
+    <% }) %>
+  </div>
+
+  <% if (hasTop) { %>
+    <div class="wb-row wb-top">
+      <div class="wb-gutter"><span><%= topLabel %></span></div>
+      <% b.days.forEach((d) => { %>
+        <div class="wb-topcell<%= d.isToday ? ' today' : '' %>">
+          <% d.allDay.forEach((x) => { %><span class="wb-allday<%= b.level === 'busy' ? ' busy' : '' %><%= x.past ? ' past' : '' %>"<%- x.color ? ` style="--c:${x.color}"` : '' %> title="<%= x.title %> (하루 종일)"><%= x.title %></span><% }) %>
+          <% d.deadlines.forEach((x) => { %>
+            <span class="wb-due<%= x.done ? ' done' : x.late ? ' late' : '' %>"<%- x.color ? ` style="--c:${x.color}"` : '' %> title="<%= x.title %> · <%= x.time %> 마감<%= x.subject ? ' · ' + x.subject : '' %>">
+              <svg class="i" aria-hidden="true"><use href="#i-flag"/></svg><span class="t"><%= x.title %></span><span class="tm num"><%= x.time === '23:59' ? '' : x.time %></span>
+            </span>
+          <% }) %>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <div class="wb-row wb-body">
+    <div class="wb-gutter wb-hours">
+      <% for (let h = b.from; h < b.to; h++) { %><span style="--h: <%= h - b.from %>"><%= pad(h) %>:00</span><% } %>
+    </div>
+    <% b.days.forEach((d) => { %>
+      <div class="wb-col<%= d.isToday ? ' today' : '' %><%= d.dow === 0 || d.dow === 6 ? ' weekend' : '' %>" aria-label="<%= d.month %>월 <%= d.date %>일 <%= d.label %>요일">
+        <% d.blocks.forEach((x) => { const tag = x.href ? 'a' : 'div'; %>
+          <<%= tag %> class="<%= blockClass(x) %>" style="<%= blockStyle(x) %>"<%- x.href ? ` href="${x.href}"` : '' %> title="<%= x.title %> <%= x.range %><%= x.sub ? ' · ' + x.sub : '' %>">
+            <b><%= x.title %></b>
+            <span class="num"><%= x.range %><% if (x.sub) { %><em> · <%= x.sub %></em><% } %></span>
+          </<%= tag %>>
+        <% }) %>
+        <% if (d.isToday && b.nowMin !== null && b.nowMin >= b.from * 60 && b.nowMin <= b.to * 60) { %>
+          <i class="wb-now" style="--s: <%= b.nowMin - b.from * 60 %>" aria-hidden="true"></i>
+        <% } %>
+      </div>
+    <% }) %>
+  </div>
+</div>
+
+<ol class="wb-agenda">
+  <% b.days.forEach((d) => { const list = agenda(d); %>
+    <li class="wb-aday<%= d.isToday ? ' today' : '' %>">
+      <div class="wb-adate">
+        <b class="num"><%= d.date %></b><span><%= d.label %></span>
+      </div>
+      <% if (!list.length) { %>
+        <p class="wb-free">비어 있어요</p>
+      <% } else { %>
+        <ul>
+          <% list.forEach(({ type, x }) => { %>
+            <% if (type === 'block') { %>
+              <li class="wb-aitem <%= x.kind %><%= b.level === 'busy' ? ' busy' : '' %>"<%- x.color ? ` style="--c:${x.color}"` : '' %>>
+                <span class="tm num"><%= x.range %></span><span class="bar" aria-hidden="true"></span>
+                <span class="body"><b><%= x.title %></b><% if (x.sub) { %><small><%= x.sub %></small><% } %></span>
+              </li>
+            <% } else if (type === 'allday') { %>
+              <li class="wb-aitem event<%= b.level === 'busy' ? ' busy' : '' %>"<%- x.color ? ` style="--c:${x.color}"` : '' %>><span class="tm">하루 종일</span><span class="bar" aria-hidden="true"></span><span class="body"><b><%= x.title %></b></span></li>
+            <% } else { %>
+              <li class="wb-aitem dl<%= x.done ? ' done' : x.late ? ' late' : '' %>"<%- x.color ? ` style="--c:${x.color}"` : '' %>>
+                <span class="tm num"><%= x.time %></span><span class="bar" aria-hidden="true"><svg class="i" aria-hidden="true"><use href="#i-flag"/></svg></span>
+                <span class="body"><b><%= x.title %></b><small>마감<%= x.subject ? ' · ' + x.subject : '' %><%= x.done ? ' · 완료' : '' %></small></span>
+              </li>
+            <% } %>
+          <% }) %>
+        </ul>
+      <% } %>
+    </li>
+  <% }) %>
+</ol>
