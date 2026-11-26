@@ -156,7 +156,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-due]").forEach((el) => {
     const { label, cls } = dueInfo(el.dataset.due);
     el.textContent = label;
-    if (cls && !el.dataset.done) el.classList.add(cls);
+    // cls가 "due-red due-over"처럼 두 개일 수 있어 나눠서 붙인다 (공백 든 문자열은 classList.add가 예외를 던져 뒤 항목이 전부 비었음)
+    if (cls && !el.dataset.done) el.classList.add(...cls.split(" "));
   });
 });
 

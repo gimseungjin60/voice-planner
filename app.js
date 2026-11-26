@@ -8,6 +8,17 @@ const app = express();
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 app.set("trust proxy", 1); // EC2 nginx 뒤에서 동작
+app.disable("x-powered-by"); // 서버 종류를 응답 헤더로 알리지 않는다
+
+// 기본 보안 헤더: MIME 추측 금지, 다른 사이트 iframe에 끼워 넣기 금지(클릭재킹), 외부로 나가는 Referer 최소화
+app.use((req, res, next) => {
+  res.set({
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+  });
+  next();
+});
 
 app.use(express.json({ limit: "200kb" })); // 강의 녹음 텍스트가 길 수 있음
 app.use(express.urlencoded({ extended: false }));

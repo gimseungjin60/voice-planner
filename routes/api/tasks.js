@@ -103,7 +103,8 @@ router.get("/summary", async (req, res, next) => {
       [userId],
     );
     const nearest = open.find((t) => t.due_at && t.due_at >= now) || null;
-    let top = await ai.prioritize({ userId, tasks: open, now });
+    // ?ai=0: 숫자 카드만 먼저 그리려고 AI 추천을 건너뛴다 (대시보드가 AI 응답을 기다리지 않게)
+    let top = req.query.ai === "0" ? null : await ai.prioritize({ userId, tasks: open, now });
     const aiOk = top !== null;
     // AI 실패 시 마감 가까운 순으로 대체
     if (!aiOk)
