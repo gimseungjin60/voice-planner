@@ -40,6 +40,7 @@ app.use("/api/events", require("./routes/api/events"));
 app.use("/api/timeline", require("./routes/api/timeline"));
 app.use("/api/sync", require("./routes/api/sync"));
 app.use("/api/notion", require("./routes/api/notion"));
+app.use("/api/assistant", require("./routes/api/assistant"));
 app.use("/auth", require("./routes/oauth"));
 app.use("/", require("./routes/pages"));
 

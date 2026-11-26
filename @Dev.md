@@ -102,7 +102,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 4. makeBriefing(todayClasses, todayEvents, dueTasks, newInboxCount) → 30초 분량 한국어 문장 (TTS용)
 5. runAssistant(text, context) → 음성 비서 (Claude tool use, 최대 3회 도구 호출 반복)
    - context: 오늘 날짜·요일, 14일 달력, 내 과목 목록
-   - 도구: add_task, list_tasks, complete_task, add_event, list_schedule(수업+일정, 날짜 범위), find_free_slot(날짜, 길이)
+   - 도구: add_task, list_tasks, complete_task, add_event, list_schedule(수업+일정, 날짜 범위), find_free_slot(날짜, 길이), add_class(과목·요일·시작·끝·강의실: 시간표에 매주 수업 추가, 과목이 없으면 새로 만들고 같은 요일 수업과 겹치면 추가하지 않음. 2026-11-26 추가)
    - 일정이 수업·기존 일정과 겹치면 추가하지 않고 빈 시간을 제안 (사용자가 "좋아"라고 다시 말하면 추가)
    - 제안한 일정은 세션(req.session.pendingAction)에 보관하고 응답에 pending으로 알려준다. 다음 요청이 수락(좋아·응·그래)이면 그대로 실행, 다른 말이면 버린다
    - 출력: { reply, actions: [{ tool, input, result }] }, 도구 호출마다 ai_logs(feature='assistant', tool_name) 기록
@@ -142,7 +142,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 5. [브리핑 듣기] → 오늘 수업·일정·마감을 TTS로
 
 # 범위에서 뺀 것
-- 학교 LMS(인하공전 이러닝시스템) 연동: 자체 개발 시스템이고 iCal 내보내기를 확인하지 못함. 통합로그인 뒤 화면을 긁어오는 방식은 하지 않는다
+- 학교 LMS(인하공전 이러닝시스템) 연동: 자체 개발 시스템이고 iCal 내보내기를 확인하지 못함. 통합로그인 뒤 화면을 긁어오는 방식은 하지 않는다. 시간표는 포털에서 가져오는 대신 음성 비서 add_class로 말해서 넣는다 (2026-11-26 결정)
 
 # styles
 - 모던 카드 UI, 둥근 모서리, 부드러운 그림자, 과목별 포인트 색상
