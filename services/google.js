@@ -202,4 +202,31 @@ function recentMails(userId, skipIds, limit = 20) {
   });
 }
 
-module.exports = { decodeEntities, configured, authUrl, saveTokens, listEvents, insertEvent, deleteEvent, recentMails };
+// 메일 본문을 글자로 (요약용. 저장하지 않는다). text/plain을 우선, 없으면 text/html에서 태그를 걷어낸다
+function partsText(part, type) {
+  if (!part) return "";
+  if (part.mimeType === type && part.body?.data) return Buffer.from(part.body.data, "base64url").toString("utf8");
+  return (part.parts || []).map((p) => partsText(p, type)).find(Boolean) || "";
+}
+const stripHtml = (h) =>
+  decodeEntities(
+    h
+      .replace(/<(style|script)[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi, "\n")
+      .replace(/<[^>]+>/g, " "),
+  );
+function mailBody(userId, messageId, max = 4000) {
+  return run(userId, async (auth) => {
+    const gmail = google.gmail({ version: "v1", auth });
+    const { data: m } = await gmail.users.messages.get({ userId: "me", id: messageId, format: "full" });
+    const text = partsText(m.payload, "text/plain") || stripHtml(partsText(m.payload, "text/html"));
+    return text
+      .replace(/[ \t ]+/g, " ")
+      .replace(/\s*\n\s*/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+      .slice(0, max);
+  });
+}
+
+module.exports = { decodeEntities, configured, authUrl, saveTokens, listEvents, insertEvent, deleteEvent, recentMails, mailBody };

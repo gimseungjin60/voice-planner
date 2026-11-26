@@ -3673,6 +3673,42 @@ dialog[open] > * {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
+/* 메일 AI 요약: 한 줄 요약 + 할 일/마감/제출·준비 (메일에 있는 항목만) */
+.mail-summary {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--fill-1);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.mail-summary > div {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 8px;
+}
+.mail-summary dt {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.mail-summary dd {
+  margin: 0;
+  color: var(--ink-2);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.mail-summary > .headline {
+  display: block;
+}
+.mail-summary > .headline dt {
+  display: none;
+}
+.mail-summary > .headline dd {
+  color: var(--ink);
+  font-weight: 600;
+}
 .found-read {
   display: flex;
   flex-wrap: wrap;

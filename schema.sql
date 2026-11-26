@@ -157,6 +157,7 @@ CREATE TABLE inbox_items (
     subject_id  INT NULL,                             -- AI가 추정한 과목
     ai_title    VARCHAR(200) NULL,                    -- AI가 제안한 할 일 제목
     ai_due_at   DATETIME NULL,                        -- AI가 찾은 마감
+    summary     TEXT NULL,                            -- AI가 본문을 정해진 형식으로 요약 (한 줄 요약/할 일/마감/제출·준비). 본문은 저장하지 않음
     status      ENUM('pending','accepted','ignored') NOT NULL DEFAULT 'pending',
     task_id     INT NULL,                             -- 수락해서 만들어진 할 일
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -199,5 +200,6 @@ INSERT INTO events (user_id, provider, external_id, title, start_at, end_at, loc
  (2, 'manual', NULL, '캡스톤 조 회의', '2026-11-24 16:30:00', '2026-11-24 17:30:00', '도서관 스터디룸'),
  (2, 'google', 'sample_gcal_1', '동아리 정기 모임', '2026-11-25 18:00:00', '2026-11-25 20:00:00', NULL);
 
-INSERT INTO inbox_items (user_id, external_id, sender, subject, received_at, subject_id, ai_title, ai_due_at) VALUES
- (2, 'sample_gmail_1', 'prof.park@example.ac.kr', '[데이터베이스] 기말 리포트 제출 안내', '2026-11-21 09:12:00', 2, '기말 리포트 제출', '2026-12-05 23:59:00');
+INSERT INTO inbox_items (user_id, external_id, sender, subject, received_at, subject_id, ai_title, ai_due_at, summary) VALUES
+ (2, 'sample_gmail_1', 'prof.park@example.ac.kr', '[데이터베이스] 기말 리포트 제출 안내', '2026-11-21 09:12:00', 2, '기말 리포트 제출', '2026-12-05 23:59:00',
+  '한 줄 요약: 데이터베이스 기말 리포트 제출 안내\n할 일: ERD를 포함한 기말 리포트 작성 후 LMS 제출\n마감: 12/5(금) 23:59\n제출·준비: PDF 한 파일, 파일명 학번_이름');

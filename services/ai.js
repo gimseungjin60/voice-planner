@@ -222,6 +222,30 @@ JSON만 출력: {"items":[{"index":0,"title":"...","due_at":"YYYY-MM-DD HH:mm","
     }));
 }
 
+// 5-1. 할 일 후보 메일 본문 → 정해진 형식 요약. 메일에 없는 항목은 뺀다. 실패하면 null (다음 동기화 때 다시 시도)
+const MAIL_FIELDS = [
+  ["headline", "한 줄 요약"],
+  ["todo", "할 일"],
+  ["due", "마감"],
+  ["submit", "제출·준비"],
+];
+async function summarizeMail({ userId, sender, subject, body, today }) {
+  const system = `너는 대학생에게 온 학교 메일을 정리하는 비서다. 메일 본문을 읽고 아래 4개 항목만 채운다.
+오늘: ${today} (${WEEK[new Date(today + "T12:00:00Z").getUTCDay()]}요일)
+- headline: 메일이 무엇에 대한 안내인지 한 문장 (30자 이내, "~안내"처럼 명사로 끝냄)
+- todo: 학생이 해야 할 일 (40자 이내)
+- due: 마감 일시. "12/5(금) 23:59" 형식. 시간이 없으면 날짜만
+- submit: 제출 방법·형식·준비물 (예: "LMS 과제함, PDF, 파일명 학번_이름") (50자 이내)
+규칙: 메일에 근거가 없는 항목은 지어내지 말고 null. 인사말·서명·홍보 문구는 무시. 존댓말 대신 짧은 개조식. 이모지·마크다운 금지.
+JSON만 출력: {"headline":"...","todo":"... 또는 null","due":"... 또는 null","submit":"... 또는 null"}`;
+  const input = `보낸 사람: ${sender}\n제목: ${subject}\n본문:\n${body}`;
+  const r = await call({ feature: "mail", userId, system, input, maxTokens: 400 });
+  if (!r || !r.headline) return null;
+  return MAIL_FIELDS.filter(([k]) => r[k] && String(r[k]).trim() && String(r[k]).trim() !== "null")
+    .map(([k, label]) => `${label}: ${String(r[k]).replace(/\s+/g, " ").trim().slice(0, 80)}`)
+    .join("\n");
+}
+
 // 6. 음성 비서 (Claude tool use). 도구 실행은 호출부(routes/api/assistant.js)의 runTool이 맡는다
 // 도구 호출 반복은 최대 3회. 실패하면 null (호출부가 "다시 말해 달라"고 답한다)
 const obj = (properties, required = []) => ({ type: "object", properties, required, additionalProperties: false });
@@ -348,4 +372,4 @@ async function runAssistant({ userId, text, today, subjects, runTool }) {
   return null;
 }
 
-module.exports = { transcribe, speak, extractTasks, summarizeLecture, prioritize, makeBriefing, analyzeMails, runAssistant, parseJson, calendar };
+module.exports = { transcribe, speak, extractTasks, summarizeLecture, prioritize, makeBriefing, analyzeMails, summarizeMail, runAssistant, parseJson, calendar };
