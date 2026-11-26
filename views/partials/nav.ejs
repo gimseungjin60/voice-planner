@@ -4,7 +4,7 @@
     ["/", "대시보드", "i-home"], ["/tasks", "할 일", "i-checklist"], ["/timetable", "시간표", "i-calendar"],
     ["/memos", "메모", "i-note"], ["/inbox", "받은 편지함", "i-mail"],
   ];
-  const more = [["/report", "주간 리포트"], ["/settings", "연동 설정"]];
+  const more = [["/share", "일정 공유"], ["/report", "주간 리포트"], ["/settings", "연동 설정"]];
   if (user.role === "admin") more.push(["/admin", "관리자"]);
   // 지금 화면: 과목 모아보기는 시간표, 메모 상세는 메모로 표시
   const current = path.startsWith("/subjects/") ? "/timetable" : path.startsWith("/memos") ? "/memos" : path;

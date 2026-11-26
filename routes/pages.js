@@ -7,12 +7,38 @@ const { TASK_SELECT, weeklyReport } = require("./api/tasks");
 const { listMemos, getMemo } = require("./api/memos");
 const { todayClasses } = require("./api/briefing");
 const { listUsers, getStats } = require("./api/admin");
+const share = require("./api/share");
 
 const router = express.Router();
 
 router.get(["/login", "/signup"], (req, res) => {
   if (req.session.user) return res.redirect("/");
   res.render("login", { title: req.path === "/signup" ? "회원가입" : "로그인", mode: req.path.slice(1) });
+});
+
+// 친구가 보는 공유 일정 (로그인 없이). 링크가 꺼졌거나 바뀌었으면 404
+router.get("/s/:token", async (req, res, next) => {
+  try {
+    // 검색 엔진 수집·캐시·Referer로 링크가 새지 않게
+    res.set({ "X-Robots-Tag": "noindex, nofollow", "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" });
+    const link = await share.findByToken(req.params.token);
+    if (!link) return res.status(404).render("shared", { title: "링크를 열 수 없어요", user: null, gone: true });
+    const isOwner = req.session.user?.user_id === link.user_id;
+    if (!isOwner) await share.countView(link.share_id);
+    const week = share.pickMonday(req.query.w, { limit: true });
+    res.render("shared", {
+      title: `${link.user_name}님의 일정`,
+      gone: false,
+      user: null, // 공유 화면에는 내 메뉴·비서를 띄우지 않는다
+      ownerName: link.user_name,
+      isOwner,
+      week,
+      board: await share.weekBoard(link.user_id, week.monday, link.visibility),
+      generatedAt: pool.kst(),
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.use(requireLogin);
@@ -105,6 +131,25 @@ router.get("/report", async (req, res, next) => {
 router.get("/inbox", async (req, res, next) => {
   try {
     res.render("inbox", { title: "받은 편지함", subjects: await listSubjects(req.session.user.user_id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 내 일정 한 페이지 + 공유 링크 관리. ?view=friend면 친구에게 보이는 모습으로
+router.get("/share", async (req, res, next) => {
+  try {
+    const userId = req.session.user.user_id;
+    const link = await share.getShare(userId);
+    const asFriend = req.query.view === "friend";
+    const week = share.pickMonday(req.query.w);
+    res.render("share", {
+      title: "일정 공유",
+      share: share.shareOut(req, link),
+      asFriend,
+      week,
+      board: await share.weekBoard(userId, week.monday, asFriend ? link?.visibility || "busy" : "owner"),
+    });
   } catch (err) {
     next(err);
   }

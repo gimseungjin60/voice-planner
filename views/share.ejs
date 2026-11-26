@@ -1,0 +1,121 @@
+<%- include('partials/header') %>
+<% const LEVELS = [
+     { key: "busy", title: "바쁜 시간만", desc: "언제 바쁜지만 보여요. 제목은 숨겨요." },
+     { key: "title", title: "수업·일정 제목", desc: "과목명·강의실과 일정 제목까지 보여요." },
+     { key: "all", title: "마감까지 모두", desc: "제목에 더해 할 일 마감도 보여요." },
+   ];
+   const q = (extra) => { const p = new URLSearchParams(); if (asFriend) p.set("view", "friend"); Object.entries(extra).forEach(([k, v]) => (v ? p.set(k, v) : p.delete(k))); const s = p.toString(); return s ? `?${s}` : "?"; };
+   const fmtSeen = (t) => t ? `${Number(t.slice(5, 7))}월 ${Number(t.slice(8, 10))}일 ${t.slice(11, 16)}` : null; %>
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>일정 공유</h1>
+      <p>수업·일정·마감을 한 주에 모아 보고, 링크 하나로 친구에게 보여 줘요.</p>
+    </div>
+    <div class="actions">
+      <button class="btn line" id="add-event-btn" type="button"><svg class="i sm" aria-hidden="true"><use href="#i-plus"/></svg>일정 추가</button>
+    </div>
+  </div>
+
+  <% if (!share) { %>
+    <section class="card share-panel off" id="share-panel">
+      <span class="share-art" aria-hidden="true"><svg class="i"><use href="#i-link"/></svg></span>
+      <div class="grow">
+        <h2>친구에게 내 일정 보여주기</h2>
+        <p>로그인 없이 열리는 읽기 전용 링크를 만들어요. 처음에는 <b>바쁜 시간만</b> 보이고, 언제든 끄거나 새 링크로 바꿀 수 있어요.</p>
+      </div>
+      <button class="btn lg" id="share-on" type="button"><svg class="i sm" aria-hidden="true"><use href="#i-link"/></svg>공유 링크 만들기</button>
+    </section>
+  <% } else { %>
+    <section class="card share-panel" id="share-panel" data-visibility="<%= share.visibility %>">
+      <div class="share-top">
+        <div class="share-state">
+          <span class="status-dot ok" aria-hidden="true"></span>
+          <b>공유 중</b>
+          <span class="fine num"><%= share.view_count ? `친구가 ${share.view_count}번 열어 봤어요 · 마지막 ${fmtSeen(share.last_viewed_at)}` : "아직 아무도 열어 보지 않았어요" %></span>
+        </div>
+        <div class="share-link">
+          <label class="sr-only" for="share-url">공유 링크</label>
+          <input id="share-url" class="input mono" value="<%= share.url %>" readonly />
+          <button class="btn" id="share-copy" type="button"><svg class="i sm" aria-hidden="true"><use href="#i-doc"/></svg><span>링크 복사</span></button>
+          <a class="btn line" href="<%= share.url %>" target="_blank" rel="noopener">열어 보기</a>
+        </div>
+      </div>
+
+      <fieldset class="share-levels">
+        <legend>친구에게 보이는 범위</legend>
+        <div class="level-grid">
+          <% LEVELS.forEach((l) => { %>
+            <label class="level<%= share.visibility === l.key ? ' on' : '' %>">
+              <input type="radio" name="visibility" value="<%= l.key %>" <%= share.visibility === l.key ? 'checked' : '' %> />
+              <span class="level-art <%= l.key %>" aria-hidden="true">
+                <i class="a"><% if (l.key !== 'busy') { %><b>데이터베이스</b><% } %></i>
+                <i class="b"><% if (l.key !== 'busy') { %><b>조 회의</b><% } %></i>
+                <% if (l.key === 'all') { %><i class="f"></i><% } %>
+              </span>
+              <span class="level-text"><b><%= l.title %></b><small><%= l.desc %></small></span>
+              <span class="check" aria-hidden="true"></span>
+            </label>
+          <% }) %>
+        </div>
+        <p class="fine with-icon"><svg class="i sm" aria-hidden="true"><use href="#i-lock"/></svg>메일 내용·음성 메모·일정 장소는 어떤 범위에서도 보이지 않아요</p>
+      </fieldset>
+
+      <div class="share-foot">
+        <button class="btn text" id="share-regen" type="button"><svg class="i sm" aria-hidden="true"><use href="#i-sync"/></svg>새 링크로 바꾸기</button>
+        <button class="btn text danger" id="share-off" type="button">공유 끄기</button>
+      </div>
+    </section>
+  <% } %>
+
+  <section class="card flush wb-card" aria-label="<%= week.label %> 일정">
+    <div class="wb-toolbar">
+      <div class="wb-title">
+        <h2><%= week.label %></h2>
+        <span class="fine num"><%= week.range %></span>
+      </div>
+      <nav class="week-nav" aria-label="주 이동">
+        <a class="icon-btn line" href="<%= q({ w: week.prev }) %>" aria-label="이전 주"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></a>
+        <a class="btn line sm<%= week.offset === 0 ? ' is-current' : '' %>" href="<%= q({ w: null }) %>">이번 주</a>
+        <a class="icon-btn line" href="<%= q({ w: week.next }) %>" aria-label="다음 주"><svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></a>
+      </nav>
+      <div class="seg" role="tablist" aria-label="보기">
+        <a href="?<%= week.offset ? 'w=' + week.monday : '' %>" class="<%= asFriend ? '' : 'active' %>" <%- asFriend ? '' : 'aria-current="page"' %>>내 화면</a>
+        <a href="?view=friend<%= week.offset ? '&w=' + week.monday : '' %>" class="<%= asFriend ? 'active' : '' %>" <%- asFriend ? 'aria-current="page"' : '' %>><svg class="i sm" aria-hidden="true"><use href="#i-user"/></svg>친구가 보는 화면</a>
+      </div>
+    </div>
+    <% if (asFriend && !share) { %>
+      <p class="wb-note">공유를 켜면 처음에는 이렇게 <b>바쁜 시간만</b> 보여요.</p>
+    <% } %>
+    <%- include('partials/week-board', { board }) %>
+    <ul class="wb-legend in-card" aria-label="범례">
+      <% if (board.level === 'busy') { %>
+        <li><i class="lg-busy"></i>바쁜 시간</li>
+      <% } else { %>
+        <li><i class="lg-class"></i>수업</li>
+        <li><i class="lg-event"></i>일정</li>
+        <% if (board.level !== 'title') { %><li><svg class="i sm" aria-hidden="true"><use href="#i-flag"/></svg>마감</li><% } %>
+      <% } %>
+    </ul>
+  </section>
+</main>
+
+<dialog id="event-dialog" aria-labelledby="event-dialog-title">
+  <form class="alert-box form-box" id="event-form">
+    <h2 id="event-dialog-title">일정 추가</h2>
+    <div class="field"><label for="ev-title">제목</label><input id="ev-title" maxlength="200" placeholder="예) 캡스톤 조 회의" required /></div>
+    <div class="field-row">
+      <div class="field"><label for="ev-date">날짜</label><input id="ev-date" type="date" required /></div>
+      <div class="field"><label for="ev-start">시작</label><input id="ev-start" type="time" step="600" value="18:00" required /></div>
+      <div class="field"><label for="ev-end">끝</label><input id="ev-end" type="time" step="600" value="19:00" required /></div>
+    </div>
+    <p class="error-msg hidden" id="ev-error"></p>
+    <p class="fine">구글 캘린더가 연결돼 있으면 캘린더에도 함께 만들어요.</p>
+    <div class="alert-actions">
+      <button class="btn gray lg" type="button" id="ev-cancel">취소</button>
+      <button class="btn lg" id="ev-save">추가</button>
+    </div>
+  </form>
+</dialog>
+<script src="/js/share.js" defer></script>
+<%- include('partials/footer') %>

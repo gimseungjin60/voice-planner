@@ -3,6 +3,7 @@
 ```mermaid
 erDiagram
     users ||--o{ ai_logs : "user_id"
+    users ||--o| share_links : "user_id"
     voice_memos |o--o{ ai_logs : "memo_id"
     users ||--o{ briefings : "user_id"
     users ||--o{ events : "user_id"
@@ -17,6 +18,15 @@ erDiagram
     voice_memos |o--o{ tasks : "memo_id"
     users ||--o{ voice_memos : "user_id"
     subjects |o--o{ voice_memos : "subject_id"
+    share_links {
+        int share_id PK
+        int user_id FK
+        char token
+        enum visibility
+        int view_count
+        datetime last_viewed_at
+        datetime created_at
+    }
     ai_logs {
         int log_id PK
         int user_id FK

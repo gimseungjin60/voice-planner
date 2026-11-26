@@ -12,7 +12,7 @@
 수업은 시간표, 약속은 구글 캘린더, 과제 공지는 메일, 정리는 노션에 흩어져 있어 한 번에 보고 싶은 사람.
 
 # database environment
-database: voiceplanner (schema.sql 참고, 10개 테이블)
+database: voiceplanner (schema.sql 참고, 11개 테이블)
 - users: 회원 (email unique, bcrypt 해시, role user/admin)
 - subjects: 과목 (사용자별, 카드 색상)
 - schedules: 시간표 (과목 1:N, 요일·시작·끝·강의실)
@@ -23,6 +23,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 - integrations: 외부 연동 (google = 캘린더+Gmail OAuth 토큰·권한, notion = integration 토큰·내보낼 DB ID)
 - events: 일정 (구글 캘린더에서 불러온 것 + 음성 비서로 만든 것, 구글 이벤트 ID로 중복 방지)
 - inbox_items: 받은 편지함 (Gmail에서 AI가 과제·마감을 찾은 메일 = 할 일 후보, 수락하면 tasks로. 메일 본문은 저장 안 하고 AI 형식 요약만 저장)
+- share_links: 일정 공유 링크 (사용자당 1개, 추측 불가 토큰, 공개 범위 busy/title/all, 열람 수). 끄면 행 삭제 (2026-11-27 추가)
 
 흐름: 외부(구글·Gmail) → events / inbox_items → (수락·음성) → tasks → (내보내기) → 노션
 
@@ -67,6 +68,12 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 | GET | /api/timeline?from=&to= | 통합 타임라인: 수업(schedules)+일정(events)+할 일 마감(tasks)을 시간순 하나의 배열로 | O |
 | POST | /api/assistant | 음성 비서. body { text } → Claude tool use로 도구 실행 → { reply(TTS용 문장), actions[], pending } | O |
 | POST | /api/notion/export | 이번 주(또는 선택한) 할 일을 노션 DB에 행으로 추가, tasks.external_id 기록 | O |
+| GET | /api/share | 내 공유 링크 상태 (꺼져 있으면 null). { url, visibility, view_count, last_viewed_at } | O |
+| POST | /api/share | 공유 켜기 (랜덤 토큰 생성, 기본 visibility=busy) | O |
+| PATCH | /api/share | 공개 범위 바꾸기 { visibility: busy·title·all } | O |
+| POST | /api/share/regenerate | 새 링크로 바꾸기 (예전 주소는 바로 무효, 열람 수 초기화) | O |
+| DELETE | /api/share | 공유 끄기 (행 삭제 → 링크 무효) | O |
+| GET | /s/:token?w=YYYY-MM-DD | 친구가 보는 읽기 전용 주간 일정 화면 (EJS). 지난주~8주 뒤까지 이동. 없는 토큰은 404 안내 | X |
 
 # 화면 (EJS)
 1. 로그인 / 회원가입
@@ -89,6 +96,13 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 8. 받은 편지함: Gmail 후보 카드 (보낸 사람, 제목, AI 요약(한 줄 요약/할 일/마감/제출·준비), AI가 찾은 할 일·마감, 과목) + [할 일로] [무시]
 9. 연동 설정: 구글 연결/재연결/해제, 노션 토큰·DB ID 입력, 마지막 동기화 시각
 10. 음성 비서 (모든 화면 공통): 오른쪽 아래 플로팅 마이크 → 말하면 자막 → 실행 결과 토스트 + TTS 답변
+11. 일정 공유 (/share, 프로필 메뉴·시간표 화면에서 진입. 2026-11-27 추가)
+   - 한 주(월~일) 보드 한 장: 수업(과목색)·일정(검정)·마감(깃발 칩, 맨 위 줄)·하루 종일 일정. 겹치면 옆으로 나눠 배치. 주 이동, 오늘 표시
+   - [일정 추가] 대화상자 (POST /api/events 재사용)
+   - 공유 패널: 링크 만들기 / 복사 / 열어 보기 / 새 링크로 바꾸기 / 끄기, 친구가 연 횟수
+   - 공개 범위 3단계: 바쁜 시간만(제목 대신 '바쁨') · 수업·일정 제목(과목명·강의실, 일정 제목) · 마감까지 모두(+ 안 끝난 할 일 마감 제목·과목)
+   - [내 화면 | 친구가 보는 화면] 전환으로 공유 범위를 미리 확인
+   - 친구 화면 /s/:token: 로그인 없이 읽기 전용, 내 메뉴·비서 없음. 데스크톱은 시간 격자, 900px 이하는 날짜별 목록
 
 # AI 기능 (services/ai.js)
 모델: Claude Haiku 계열 (빠르고 저렴). 모든 호출은 ai_logs에 기록.
@@ -125,6 +139,11 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 10. 구글 토큰 만료·취소 시 앱은 계속 동작하고 연동 설정에 "다시 연결" 표시 (DB에 있는 일정은 그대로 보여줌)
 11. Gmail은 먼저 제목·보낸 사람·snippet만 AI에 보내 할 일 후보를 고른다. 후보로 뽑힌 메일만 본문(최대 4000자)을 AI에 보내 정해진 형식(한 줄 요약/할 일/마감/제출·준비, 메일에 없는 항목은 생략)으로 요약하고 요약만 inbox_items.summary에 저장한다. 본문은 저장하지 않는다. 이미 본 메시지 ID는 다시 분석하지 않음 (2026-11-26 결정)
 12. 외부 토큰(구글·노션)은 integrations에만 저장하고 API 응답·로그·화면에 내보내지 않는다 (과제 범위에서 DB 암호화는 생략, DB 계정 접근 제한으로 대체)
+13. 일정 공유 (2026-11-27 추가)
+   - 공유 토큰은 crypto.randomBytes(24) base64url 32자. 공유 링크 자체이므로 본인 화면·/api/share 응답에는 보여준다 (외부 연동 토큰과 다름)
+   - 친구 화면은 DB만 읽는다. 메일 내용·음성 메모·할 일 상세(우선순위·출처·메모)·일정 장소는 어떤 범위에서도 보내지 않는다. 완료한 할 일은 공유하지 않는다
+   - /s/:token 응답에 X-Robots-Tag noindex, Cache-Control no-store, Referrer-Policy no-referrer
+   - 링크 주인이 로그인한 채로 열면 "내 공유 링크" 안내를 띄우고 열람 수에 세지 않는다
 
 # 비기능 요구사항
 - HTTPS 필수 (마이크 권한 + 구글 OAuth redirect). EC2에 무료 도메인(DuckDNS 등) + Let's Encrypt

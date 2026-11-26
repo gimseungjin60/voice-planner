@@ -1,0 +1,59 @@
+<%- include('partials/header') %>
+<% const md = (ymd) => `${Number(ymd.slice(5, 7))}월 ${Number(ymd.slice(8, 10))}일`; %>
+<header class="share-bar">
+  <a class="brand" href="/" rel="noreferrer"><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span><span class="brand-name">보이스 플래너</span></a>
+  <span class="share-ro"><svg class="i sm" aria-hidden="true"><use href="#i-lock"/></svg>읽기 전용</span>
+</header>
+
+<% if (gone) { %>
+  <main class="error-page">
+    <div>
+      <span class="warn-icon"><svg class="i"><use href="#i-link"/></svg></span>
+      <h1>링크를 열 수 없어요</h1>
+      <p>공유가 꺼졌거나 새 링크로 바뀌었어요.<br />일정을 보여준 친구에게 새 링크를 받아 주세요.</p>
+    </div>
+  </main>
+<% } else { %>
+<main class="container shared-page">
+  <% if (isOwner) { %>
+    <div class="banner" role="status">
+      <svg class="i" aria-hidden="true"><use href="#i-info"/></svg>
+      <div class="grow"><b>내 공유 링크예요</b><p>친구에게는 지금 이 화면이 그대로 보여요. 내가 연 것은 열람 수에 세지 않아요.</p></div>
+      <a class="btn line sm" href="/share">공유 설정</a>
+    </div>
+  <% } %>
+
+  <section class="shared-hero">
+    <div>
+      <p class="eyebrow"><span class="avatar" aria-hidden="true"><%= ownerName.charAt(0) %></span><%= ownerName %>님이 공유한 일정</p>
+      <h1><%= ownerName %>님의 <%= week.label %></h1>
+      <p class="lead num"><%= week.range %>
+        <% if (board.level === 'busy') { %> · 바쁜 시간만 보여요<% } else { %> · 수업 <b><%= board.counts.class %></b> · 일정 <b><%= board.counts.event %></b><% if (board.level === 'all') { %> · 마감 <b><%= board.counts.deadline %></b><% } %><% } %>
+      </p>
+    </div>
+    <nav class="week-nav" aria-label="주 이동">
+      <% if (week.prev) { %><a class="icon-btn line" href="?w=<%= week.prev %>" aria-label="이전 주"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></a><% } else { %><span class="icon-btn line off" aria-hidden="true"><svg class="i"><use href="#i-chevron-left"/></svg></span><% } %>
+      <a class="btn line sm<%= week.offset === 0 ? ' is-current' : '' %>" href="?">이번 주</a>
+      <% if (week.next) { %><a class="icon-btn line" href="?w=<%= week.next %>" aria-label="다음 주"><svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></a><% } else { %><span class="icon-btn line off" aria-hidden="true"><svg class="i"><use href="#i-chevron"/></svg></span><% } %>
+    </nav>
+  </section>
+
+  <section class="card flush wb-card" aria-label="<%= week.label %> 일정">
+    <%- include('partials/week-board', { board }) %>
+  </section>
+
+  <footer class="shared-foot">
+    <ul class="wb-legend" aria-label="범례">
+      <% if (board.level === 'busy') { %>
+        <li><i class="lg-busy"></i>바쁜 시간</li>
+      <% } else { %>
+        <li><i class="lg-class"></i>수업</li>
+        <li><i class="lg-event"></i>일정</li>
+        <% if (board.level === 'all') { %><li><svg class="i sm" aria-hidden="true"><use href="#i-flag"/></svg>마감</li><% } %>
+      <% } %>
+    </ul>
+    <p class="fine num"><%= md(generatedAt) %> <%= generatedAt.slice(11, 16) %> 기준 · 보이스 플래너에서 만든 읽기 전용 페이지예요</p>
+  </footer>
+</main>
+<% } %>
+<%- include('partials/footer') %>
