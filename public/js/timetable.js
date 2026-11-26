@@ -103,3 +103,10 @@ form.addEventListener("submit", async (e) => {
   errBox.textContent = r.error;
   if (/과목명|이름/.test(r.error)) nameInput.setAttribute("aria-invalid", "true");
 });
+
+// 음성 비서로 시간표를 바꿨으면, 비서 창을 닫을 때 새로고침해서 표에 반영 (말하는 도중에 끊기지 않게)
+let timetableChanged = false;
+document.addEventListener("assistant:done", (e) => {
+  if (e.detail?.actions?.some((a) => a.tool === "add_class")) timetableChanged = true;
+});
+document.addEventListener("assistant:close", () => timetableChanged && location.reload());

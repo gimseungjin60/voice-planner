@@ -22,7 +22,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 - ai_logs: AI 호출 기록 (기능, 음성 비서가 실행한 도구, 입력, 출력, 토큰, 성공 여부)
 - integrations: 외부 연동 (google = 캘린더+Gmail OAuth 토큰·권한, notion = integration 토큰·내보낼 DB ID)
 - events: 일정 (구글 캘린더에서 불러온 것 + 음성 비서로 만든 것, 구글 이벤트 ID로 중복 방지)
-- inbox_items: 받은 편지함 (Gmail에서 AI가 과제·마감을 찾은 메일 = 할 일 후보, 수락하면 tasks로. 메일 본문은 저장 안 함)
+- inbox_items: 받은 편지함 (Gmail에서 AI가 과제·마감을 찾은 메일 = 할 일 후보, 수락하면 tasks로. 메일 본문은 저장 안 하고 AI 형식 요약만 저장)
 
 흐름: 외부(구글·Gmail) → events / inbox_items → (수락·음성) → tasks → (내보내기) → 노션
 
@@ -86,7 +86,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 5. 할 일 보드: 할 일 · 진행 중 · 완료 3열 카드, 과목 색상 표시, 마감 임박 빨간 표시
 6. 시간표: 주간 표, 과목 추가/수정
 7. 관리자: 회원 목록·삭제, 통계 카드 (email role이 admin일 때만 메뉴 노출)
-8. 받은 편지함: Gmail 후보 카드 (보낸 사람, 제목, AI가 찾은 할 일·마감, 과목) + [할 일로] [무시]
+8. 받은 편지함: Gmail 후보 카드 (보낸 사람, 제목, AI 요약(한 줄 요약/할 일/마감/제출·준비), AI가 찾은 할 일·마감, 과목) + [할 일로] [무시]
 9. 연동 설정: 구글 연결/재연결/해제, 노션 토큰·DB ID 입력, 마지막 동기화 시각
 10. 음성 비서 (모든 화면 공통): 오른쪽 아래 플로팅 마이크 → 말하면 자막 → 실행 결과 토스트 + TTS 답변
 
@@ -102,7 +102,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 4. makeBriefing(todayClasses, todayEvents, dueTasks, newInboxCount) → 30초 분량 한국어 문장 (TTS용)
 5. runAssistant(text, context) → 음성 비서 (Claude tool use, 최대 3회 도구 호출 반복)
    - context: 오늘 날짜·요일, 14일 달력, 내 과목 목록
-   - 도구: add_task, list_tasks, complete_task, add_event, list_schedule(수업+일정, 날짜 범위), find_free_slot(날짜, 길이)
+   - 도구: add_task, list_tasks, complete_task, add_event, list_schedule(수업+일정, 날짜 범위), find_free_slot(날짜, 길이), add_class(과목·요일·시작·끝·강의실: 시간표에 매주 수업 추가, 과목이 없으면 새로 만들고 같은 요일 수업과 겹치면 추가하지 않음. 2026-11-26 추가)
    - 일정이 수업·기존 일정과 겹치면 추가하지 않고 빈 시간을 제안 (사용자가 "좋아"라고 다시 말하면 추가)
    - 제안한 일정은 세션(req.session.pendingAction)에 보관하고 응답에 pending으로 알려준다. 다음 요청이 수락(좋아·응·그래)이면 그대로 실행, 다른 말이면 버린다
    - 출력: { reply, actions: [{ tool, input, result }] }, 도구 호출마다 ai_logs(feature='assistant', tool_name) 기록
@@ -123,7 +123,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 8. 외부 API 호출은 services/google.js, services/notion.js에서만. 브라우저는 우리 /api만 부른다
 9. 동기화는 수동(버튼) + 대시보드 진입 시 마지막 동기화가 10분 지났으면 자동 1회
 10. 구글 토큰 만료·취소 시 앱은 계속 동작하고 연동 설정에 "다시 연결" 표시 (DB에 있는 일정은 그대로 보여줌)
-11. Gmail은 제목·보낸 사람·snippet만 AI에 보내고 본문은 저장하지 않는다. 이미 본 메시지 ID는 다시 분석하지 않음
+11. Gmail은 먼저 제목·보낸 사람·snippet만 AI에 보내 할 일 후보를 고른다. 후보로 뽑힌 메일만 본문(최대 4000자)을 AI에 보내 정해진 형식(한 줄 요약/할 일/마감/제출·준비, 메일에 없는 항목은 생략)으로 요약하고 요약만 inbox_items.summary에 저장한다. 본문은 저장하지 않는다. 이미 본 메시지 ID는 다시 분석하지 않음 (2026-11-26 결정)
 12. 외부 토큰(구글·노션)은 integrations에만 저장하고 API 응답·로그·화면에 내보내지 않는다 (과제 범위에서 DB 암호화는 생략, DB 계정 접근 제한으로 대체)
 
 # 비기능 요구사항
@@ -142,7 +142,7 @@ database: voiceplanner (schema.sql 참고, 10개 테이블)
 5. [브리핑 듣기] → 오늘 수업·일정·마감을 TTS로
 
 # 범위에서 뺀 것
-- 학교 LMS(인하공전 이러닝시스템) 연동: 자체 개발 시스템이고 iCal 내보내기를 확인하지 못함. 통합로그인 뒤 화면을 긁어오는 방식은 하지 않는다
+- 학교 LMS(인하공전 이러닝시스템) 연동: 자체 개발 시스템이고 iCal 내보내기를 확인하지 못함. 통합로그인 뒤 화면을 긁어오는 방식은 하지 않는다. 시간표는 포털에서 가져오는 대신 음성 비서 add_class로 말해서 넣는다 (2026-11-26 결정)
 
 # styles
 - 모던 카드 UI, 둥근 모서리, 부드러운 그림자, 과목별 포인트 색상

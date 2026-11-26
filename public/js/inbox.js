@@ -4,6 +4,19 @@ const syncBtn = document.getElementById("mail-sync");
 const subjectOptions = document.getElementById("subject-options").innerHTML;
 let status = "pending";
 
+// AI 요약 "항목: 내용" 줄들 → 라벨이 붙은 목록 (한 줄 요약은 굵게)
+function summaryBlock(summary) {
+  if (!summary) return "";
+  const rows = summary
+    .split("\n")
+    .map((line) => line.match(/^([^:]{1,10}):\s*(.+)$/))
+    .filter(Boolean);
+  if (!rows.length) return "";
+  return `<dl class="mail-summary" aria-label="AI 요약">${rows
+    .map(([, k, v]) => `<div class="${k === "한 줄 요약" ? "headline" : ""}"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`)
+    .join("")}</dl>`;
+}
+
 // "박교수 <prof.park@…>" → 이름 / 주소 / 첫 글자
 function parseSender(s = "") {
   const m = s.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>/);
@@ -55,7 +68,7 @@ function itemHtml(it) {
       <div class="mail-time">${received(it.received_at)}</div>
     </div>
     <div class="mail-subject">${esc(it.subject)}</div>
-    ${it.snippet ? `<div class="mail-preview">${esc(it.snippet)}</div>` : ""}
+    ${summaryBlock(it.summary)}
     ${body}</article>`;
 }
 

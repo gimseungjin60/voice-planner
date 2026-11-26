@@ -49,6 +49,7 @@
     fab.classList.remove("open");
     fab.setAttribute("aria-expanded", "false");
     fab.focus();
+    document.dispatchEvent(new CustomEvent("assistant:close"));
   }
 
   function setMic(on) {
@@ -121,7 +122,7 @@
       bubble("assist-choices", `<button class="btn sm" data-say="좋아">좋아</button><button class="btn line sm" data-say="다른 시간">다른 시간</button>`);
       if (Voice.sttSupported) bubble("assist-hint", "‘좋아’라고 말해도 돼요");
     }
-    if (actions.length) document.dispatchEvent(new CustomEvent("assistant:done"));
+    if (actions.length) document.dispatchEvent(new CustomEvent("assistant:done", { detail: { actions } }));
     if (!Voice.ttsSupported) return setState("idle");
     setState("speaking");
     Voice.speak(reply, () => setState("idle"));

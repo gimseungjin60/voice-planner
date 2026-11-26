@@ -27,6 +27,36 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+// 일정 만들기 (POST /api/events와 음성 비서 add_event가 같이 쓴다). 저장된 행을 돌려준다
+async function createEvent(userId, { title, startAt, endAt, location = null }) {
+  let externalId = null;
+  let googleError = null;
+  const [[g]] = await pool.query("SELECT 1 FROM integrations WHERE user_id = ? AND provider = 'google'", [userId]);
+  if (g && google.configured()) {
+    try {
+      externalId = await google.insertEvent(userId, { title, start_at: startAt, end_at: endAt, location });
+    } catch (err) {
+      googleError = err.message;
+    }
+  }
+  const [r] = await pool.query("INSERT INTO events (user_id, provider, external_id, title, start_at, end_at, location, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [
+    userId,
+    externalId ? "google" : "manual",
+    externalId,
+    title,
+    startAt,
+    endAt,
+    location,
+    externalId ? pool.kst() : null,
+  ]);
+  const [[row]] = await pool.query("SELECT event_id, provider, title, start_at, end_at, location FROM events WHERE event_id = ? AND user_id = ?", [
+    r.insertId,
+    userId,
+  ]);
+  if (googleError) row.google_error = googleError;
+  return row;
+}
+
 router.post("/", async (req, res, next) => {
   try {
     const b = req.body || {};
@@ -36,33 +66,8 @@ router.post("/", async (req, res, next) => {
     if (!title || title.length > 200) return res.status(400).json({ ok: false, error: "제목을 입력하세요 (200자 이내)" });
     if (!startAt || !endAt) return res.status(400).json({ ok: false, error: "시작 시각을 입력하세요" });
     if (endAt < startAt) return res.status(400).json({ ok: false, error: "끝 시각은 시작 시각보다 늦어야 해요" });
-    const userId = req.session.user.user_id;
     const location = String(b.location || "").trim().slice(0, 200) || null;
-    let externalId = null;
-    let googleError = null;
-    const [[g]] = await pool.query("SELECT 1 FROM integrations WHERE user_id = ? AND provider = 'google'", [userId]);
-    if (g && google.configured()) {
-      try {
-        externalId = await google.insertEvent(userId, { title, start_at: startAt, end_at: endAt, location });
-      } catch (err) {
-        googleError = err.message;
-      }
-    }
-    const [r] = await pool.query("INSERT INTO events (user_id, provider, external_id, title, start_at, end_at, location, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [
-      userId,
-      externalId ? "google" : "manual",
-      externalId,
-      title,
-      startAt,
-      endAt,
-      location,
-      externalId ? pool.kst() : null,
-    ]);
-    const [[row]] = await pool.query("SELECT event_id, provider, title, start_at, end_at, location FROM events WHERE event_id = ? AND user_id = ?", [
-      r.insertId,
-      userId,
-    ]);
-    if (googleError) row.google_error = googleError;
+    const row = await createEvent(req.session.user.user_id, { title, startAt, endAt, location });
     res.status(201).json({ ok: true, data: row });
   } catch (err) {
     next(err);
@@ -85,4 +90,5 @@ router.delete("/:id", async (req, res, next) => {
   }
 });
 
+router.createEvent = createEvent;
 module.exports = router;

@@ -38,7 +38,33 @@ router.post("/calendar", async (req, res, next) => {
   }
 });
 
-// 최근 7일 메일 중 처음 보는 것만 AI에 보낸다 (보낸 사람·제목·snippet만, 본문 저장 안 함)
+// 아직 요약이 없는 할 일 후보 메일(최대 10통)의 본문을 받아 형식 요약만 저장 (본문은 저장하지 않음)
+// 메일 하나가 실패해도 나머지는 계속, 실패한 것은 다음 동기화 때 다시 시도
+async function summarizePending(userId) {
+  const [items] = await pool.query(
+    "SELECT item_id, external_id, sender, subject FROM inbox_items WHERE user_id = ? AND ai_title IS NOT NULL AND summary IS NULL AND status = 'pending' ORDER BY received_at DESC LIMIT 10",
+    [userId],
+  );
+  const today = pool.kst().slice(0, 10);
+  const done = await Promise.all(
+    items.map(async (it) => {
+      try {
+        const body = await google.mailBody(userId, it.external_id);
+        if (!body) return 0;
+        const summary = await ai.summarizeMail({ userId, sender: it.sender, subject: it.subject, body, today });
+        if (!summary) return 0;
+        await pool.query("UPDATE inbox_items SET summary = ? WHERE item_id = ? AND user_id = ?", [summary, it.item_id, userId]);
+        return 1;
+      } catch (err) {
+        console.error("[sync:summary]", err.message);
+        return 0;
+      }
+    }),
+  );
+  return done.reduce((a, b) => a + b, 0);
+}
+
+// 최근 7일 메일 중 처음 보는 것만 AI에 보낸다 (보낸 사람·제목·snippet만). 후보로 뽑힌 메일만 본문을 받아 형식 요약 (본문 저장 안 함)
 // 할 일이 없는 메일도 '봤음' 표시로 inbox_items에 ID만 남긴다 (ai_title NULL + ignored → 목록에는 안 보임, 다시 분석 안 함)
 router.post("/gmail", async (req, res, next) => {
   try {
@@ -66,8 +92,9 @@ router.post("/gmail", async (req, res, next) => {
         await pool.query("INSERT IGNORE INTO inbox_items (user_id, provider, external_id, status) VALUES (?, 'gmail', ?, 'ignored')", [userId, m.id]);
       }
     }
+    const summarized = await summarizePending(userId);
     await pool.query("UPDATE integrations SET last_synced_at = ? WHERE user_id = ? AND provider = 'google'", [pool.kst(), userId]);
-    res.json({ ok: true, data: { found: found.length, checked: mails.length } });
+    res.json({ ok: true, data: { found: found.length, checked: mails.length, summarized } });
   } catch (err) {
     next(err);
   }

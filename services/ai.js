@@ -44,12 +44,12 @@ async function call({ feature, userId, memoId = null, system, input, json = true
 const redact = (m) => String(m).replace(/(sk-|Bearer\s+)[\w*.-]+/gi, "$1***");
 
 // ai_logs 기록 (실패해도 무시)
-function log(userId, memoId, feature, input, output, tokens, success) {
+function log(userId, memoId, feature, input, output, tokens, success, toolName = null) {
   output = output && redact(output);
   return pool
     .query(
-      "INSERT INTO ai_logs (user_id, memo_id, feature, input_text, output_text, tokens, success) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [userId, memoId, feature, String(input).slice(0, 60000), output, tokens, success],
+      "INSERT INTO ai_logs (user_id, memo_id, feature, tool_name, input_text, output_text, tokens, success) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [userId, memoId, feature, toolName, String(input).slice(0, 60000), output, tokens, success],
     )
     .catch((e) => console.error("[ai_logs]", e.message));
 }
@@ -222,4 +222,154 @@ JSON만 출력: {"items":[{"index":0,"title":"...","due_at":"YYYY-MM-DD HH:mm","
     }));
 }
 
-module.exports = { transcribe, speak, extractTasks, summarizeLecture, prioritize, makeBriefing, analyzeMails, parseJson, calendar };
+// 5-1. 할 일 후보 메일 본문 → 정해진 형식 요약. 메일에 없는 항목은 뺀다. 실패하면 null (다음 동기화 때 다시 시도)
+const MAIL_FIELDS = [
+  ["headline", "한 줄 요약"],
+  ["todo", "할 일"],
+  ["due", "마감"],
+  ["submit", "제출·준비"],
+];
+async function summarizeMail({ userId, sender, subject, body, today }) {
+  const system = `너는 대학생에게 온 학교 메일을 정리하는 비서다. 메일 본문을 읽고 아래 4개 항목만 채운다.
+오늘: ${today} (${WEEK[new Date(today + "T12:00:00Z").getUTCDay()]}요일)
+- headline: 메일이 무엇에 대한 안내인지 한 문장 (30자 이내, "~안내"처럼 명사로 끝냄)
+- todo: 학생이 해야 할 일 (40자 이내)
+- due: 마감 일시. "12/5(금) 23:59" 형식. 시간이 없으면 날짜만
+- submit: 제출 방법·형식·준비물 (예: "LMS 과제함, PDF, 파일명 학번_이름") (50자 이내)
+규칙: 메일에 근거가 없는 항목은 지어내지 말고 null. 인사말·서명·홍보 문구는 무시. 존댓말 대신 짧은 개조식. 이모지·마크다운 금지.
+JSON만 출력: {"headline":"...","todo":"... 또는 null","due":"... 또는 null","submit":"... 또는 null"}`;
+  const input = `보낸 사람: ${sender}\n제목: ${subject}\n본문:\n${body}`;
+  const r = await call({ feature: "mail", userId, system, input, maxTokens: 400 });
+  if (!r || !r.headline) return null;
+  return MAIL_FIELDS.filter(([k]) => r[k] && String(r[k]).trim() && String(r[k]).trim() !== "null")
+    .map(([k, label]) => `${label}: ${String(r[k]).replace(/\s+/g, " ").trim().slice(0, 80)}`)
+    .join("\n");
+}
+
+// 6. 음성 비서 (Claude tool use). 도구 실행은 호출부(routes/api/assistant.js)의 runTool이 맡는다
+// 도구 호출 반복은 최대 3회. 실패하면 null (호출부가 "다시 말해 달라"고 답한다)
+const obj = (properties, required = []) => ({ type: "object", properties, required, additionalProperties: false });
+const ASSISTANT_TOOLS = [
+  {
+    name: "add_task",
+    description: "할 일을 추가한다. 과제·시험 준비·제출처럼 마감이 있는 일.",
+    input_schema: obj(
+      {
+        title: { type: "string", description: "할 일 이름 (30자 이내)" },
+        due_at: { type: ["string", "null"], description: "마감 YYYY-MM-DD HH:mm. 시간이 없으면 23:59, 모르면 null" },
+        subject: { type: ["string", "null"], description: "내 과목 목록에 있는 과목명, 없으면 null" },
+        priority: { type: "string", enum: ["low", "mid", "high"] },
+      },
+      ["title", "due_at", "subject", "priority"],
+    ),
+  },
+  {
+    name: "list_tasks",
+    description: "아직 끝내지 않은 할 일 목록을 본다. complete_task에 쓸 task_id도 여기서 얻는다.",
+    input_schema: obj({ range: { type: "string", enum: ["today", "week", "all"], description: "today=오늘 마감, week=7일 안 마감, all=전체" } }, ["range"]),
+  },
+  {
+    name: "complete_task",
+    description: "할 일을 완료로 표시한다. task_id는 list_tasks로 먼저 확인한다.",
+    input_schema: obj({ task_id: { type: "integer" } }, ["task_id"]),
+  },
+  {
+    name: "add_event",
+    description: "약속·회의 같은 일정을 추가한다. 수업이나 다른 일정과 겹치면 서버가 추가하지 않고 빈 시간을 제안해 돌려준다.",
+    input_schema: obj(
+      {
+        title: { type: "string" },
+        date: { type: "string", description: "YYYY-MM-DD" },
+        start_time: { type: "string", description: "HH:mm (24시간)" },
+        minutes: { type: "integer", description: "길이(분). 말이 없으면 60" },
+        location: { type: ["string", "null"] },
+      },
+      ["title", "date", "start_time", "minutes", "location"],
+    ),
+  },
+  {
+    name: "list_schedule",
+    description: "날짜 범위의 수업(시간표)과 일정을 본다.",
+    input_schema: obj({ from: { type: "string", description: "YYYY-MM-DD" }, to: { type: "string", description: "YYYY-MM-DD" } }, ["from", "to"]),
+  },
+  {
+    name: "find_free_slot",
+    description: "그날 수업·일정을 피해 빈 시간을 찾는다 (09:00~22:00).",
+    input_schema: obj({ date: { type: "string", description: "YYYY-MM-DD" }, minutes: { type: "integer" } }, ["date", "minutes"]),
+  },
+  {
+    name: "add_class",
+    description: "시간표에 매주 반복되는 수업 시간을 추가한다. 과목이 없으면 새로 만든다. 요일이 여러 개면 요일마다 한 번씩 호출한다.",
+    input_schema: obj(
+      {
+        subject: { type: "string", description: "과목명. 내 과목 목록에 비슷한 이름이 있으면 그 이름을 그대로 쓴다" },
+        day_of_week: { type: "integer", description: "0=일 1=월 2=화 3=수 4=목 5=금 6=토" },
+        start_time: { type: "string", description: "HH:mm (24시간)" },
+        end_time: { type: "string", description: "HH:mm (24시간)" },
+        room: { type: ["string", "null"], description: "강의실, 없으면 null" },
+        professor: { type: ["string", "null"], description: "교수명, 없으면 null" },
+      },
+      ["subject", "day_of_week", "start_time", "end_time", "room", "professor"],
+    ),
+  },
+];
+
+async function runAssistant({ userId, text, today, subjects, runTool }) {
+  if (!client) {
+    await log(userId, null, "assistant", text, "ERROR: ANTHROPIC_API_KEY가 설정되지 않았어요", null, false);
+    return null;
+  }
+  const system = `너는 대학생 플래너의 음성 비서다. 사용자의 말(음성 인식 결과, 오타 있음)을 듣고 도구로 처리한 뒤 짧게 답한다.
+오늘: ${today} (${WEEK[new Date(today + "T12:00:00Z").getUTCDay()]}요일)
+달력: ${calendar(today)}
+내 과목 목록: ${subjects.length ? subjects.join(", ") : "(없음)"}
+규칙:
+- "내일", "다음 주 화요일" 같은 날짜는 위 달력으로 실제 날짜로 바꾼다. "오후 3시"는 15:00. 오전/오후가 없고 1~7시면 오후로 본다.
+- 시간표(매주 반복 수업)를 추가해 달라고 하면 add_class, 한 번뿐인 약속·회의는 add_event, 해야 할 일·과제는 add_task.
+- 수업 끝 시간을 말하지 않으면 다시 묻지 말고 시작 시각 + 1시간 30분으로 둔다.
+- 도구 결과에 conflict가 있으면 일정이 추가되지 않은 것이다. 겹치는 이유와 제안 시간을 말하고 "괜찮으면 좋아라고 말해 주세요"처럼 확인을 구한다.
+- 답은 소리 내어 읽기 좋게 1~2문장 한국어 존댓말. 이모지·마크다운·목록 금지. 시간은 "오후 4시 30분"처럼.
+- 플래너와 관계없는 말이면 할 수 있는 일(일정 잡기, 할 일 추가·완료, 마감 확인, 시간표 추가)을 짧게 안내한다.`;
+  const messages = [{ role: "user", content: text }];
+  const actions = [];
+  let tokens = 0;
+  try {
+    for (let round = 0; round <= 3; round++) {
+      const msg = await client.messages.create({
+        model: MODEL,
+        max_tokens: 1024,
+        system,
+        // 마지막 바퀴는 도구 없이 답만 받는다 (도구 호출 최대 3회)
+        ...(round < 3 ? { tools: ASSISTANT_TOOLS } : {}),
+        messages,
+      });
+      tokens += (msg.usage?.input_tokens || 0) + (msg.usage?.output_tokens || 0);
+      const uses = msg.content.filter((b) => b.type === "tool_use");
+      if (msg.stop_reason !== "tool_use" || !uses.length) {
+        const reply = msg.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+        await log(userId, null, "assistant", text, reply || `(stop: ${msg.stop_reason})`, tokens, !!reply);
+        return reply ? { reply, actions } : null;
+      }
+      messages.push({ role: "assistant", content: msg.content });
+      const results = [];
+      for (const u of uses) {
+        let result;
+        try {
+          result = await runTool(u.name, u.input || {});
+        } catch (err) {
+          result = { error: err.message };
+        }
+        actions.push({ tool: u.name, input: u.input, result });
+        await log(userId, null, "assistant", JSON.stringify(u.input), JSON.stringify(result).slice(0, 60000), null, !result?.error, u.name);
+        results.push({ type: "tool_result", tool_use_id: u.id, content: JSON.stringify(result), ...(result?.error ? { is_error: true } : {}) });
+      }
+      messages.push({ role: "user", content: results });
+    }
+  } catch (err) {
+    console.error("[ai:assistant]", redact(err.message));
+    await log(userId, null, "assistant", text, `ERROR: ${err.message}`, tokens || null, false);
+  }
+  return null;
+}
+
+module.exports = { transcribe, speak, extractTasks, summarizeLecture, prioritize, makeBriefing, analyzeMails, summarizeMail, runAssistant, parseJson, calendar };
