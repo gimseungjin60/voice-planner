@@ -159,3 +159,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (cls && !el.dataset.done) el.classList.add(cls);
   });
 });
+
+// 동기화 결과 안내 문구 (대시보드·연동 설정 공통). 캘린더·메일 중 하나만 실패해도 이유를 같이 보여준다
+function syncMessage(cal, mail) {
+  if (!cal.ok && !mail.ok) return cal.error || mail.error || "동기화하지 못했어요";
+  const parts = [cal.ok ? `일정 ${cal.data.synced}개` : `일정 실패: ${cal.error}`];
+  if (!mail.ok) parts.push(`메일 실패: ${mail.error}`);
+  else if (mail.data.ai_failed) parts.push("메일 분석은 다음 동기화 때 다시 시도해요");
+  else parts.push(`새 과제 후보 ${mail.data.found}개`);
+  return `동기화했어요 · ${parts.join(", ")}`;
+}

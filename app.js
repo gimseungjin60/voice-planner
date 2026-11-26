@@ -38,6 +38,9 @@ app.use("/api/inbox", require("./routes/api/inbox"));
 app.use("/api/integrations", require("./routes/api/integrations"));
 app.use("/api/events", require("./routes/api/events"));
 app.use("/api/timeline", require("./routes/api/timeline"));
+app.use("/api/sync", require("./routes/api/sync"));
+app.use("/api/notion", require("./routes/api/notion"));
+app.use("/auth", require("./routes/oauth"));
 app.use("/", require("./routes/pages"));
 
 app.use((req, res) => {
@@ -45,10 +48,12 @@ app.use((req, res) => {
   res.status(404).render("error", { title: "404", message: "페이지를 찾을 수 없어요" });
 });
 app.use((err, req, res, next) => {
-  console.error(err);
-  if (res.headersSent) return res.destroy(); // 음성 스트리밍 도중 실패: 이미 보낸 응답은 끊기만 한다
   const status = err.status || err.statusCode || 500;
-  const message = status < 500 ? err.message : "서버 오류가 발생했어요";
+  if (err.expose) console.error(`[${status}] ${err.message}`);
+  else console.error(err);
+  if (res.headersSent) return res.destroy(); // 음성 스트리밍 도중 실패: 이미 보낸 응답은 끊기만 한다
+  // 5xx는 내부 메시지를 숨긴다. 단 외부 연동 안내(services에서 expose=true로 만든 에러)는 그대로 보여준다
+  const message = status < 500 || err.expose ? err.message : "서버 오류가 발생했어요";
   if (req.originalUrl.startsWith("/api")) return res.status(status).json({ ok: false, error: message });
   res.status(status).render("error", { title: "오류", message });
 });

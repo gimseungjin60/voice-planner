@@ -58,7 +58,9 @@ async function load() {
     b.classList.add("loading");
     const res = await api("/api/notion/export", { method: "POST" });
     b.classList.remove("loading");
-    if (res.ok) toast(`할 일 ${res.data.exported}개를 내보냈어요`);
+    if (!res.ok) return;
+    if (!res.data.exported) return toast("이번 주에 새로 내보낼 할 일이 없어요");
+    toast(`할 일 ${res.data.exported}개를 내보냈어요${res.data.failed ? ` · ${res.data.failed}개 실패` : ""}`);
   });
 }
 
@@ -66,10 +68,10 @@ $("g-sync-now").addEventListener("click", async (e) => {
   const b = e.currentTarget;
   b.classList.add("loading");
   b.querySelector("span").textContent = "동기화 중…";
-  const [cal, mail] = await Promise.all([api("/api/sync/calendar", { method: "POST" }), api("/api/sync/gmail", { method: "POST", quiet: true })]);
+  const [cal, mail] = await Promise.all([api("/api/sync/calendar", { method: "POST", quiet: true }), api("/api/sync/gmail", { method: "POST", quiet: true })]);
   b.classList.remove("loading");
   b.querySelector("span").textContent = "지금 동기화";
-  if (cal.ok) toast(`동기화했어요 · 일정 ${cal.data.synced}개, 새 과제 후보 ${mail.data?.found ?? 0}개`, { type: "sync" });
+  toast(syncMessage(cal, mail), { type: cal.ok && mail.ok && !mail.data.ai_failed ? "sync" : "fail" });
   load();
 });
 
@@ -107,5 +109,19 @@ $("stt-status").innerHTML = Voice.sttSupported
   : `<span class="status-dot warn">이 브라우저는 지원하지 않아요</span><span>Chrome·Edge에서 사용하세요</span>`;
 $("tts-status").innerHTML = Voice.ttsSupported ? `<span class="status-dot ok">사용 가능</span>` : `<span class="status-dot warn">지원하지 않아요</span>`;
 $("tts-test").addEventListener("click", () => Voice.speak("안녕하세요. 보이스 플래너가 오늘 브리핑을 이렇게 읽어드려요."));
+
+// 구글 연결 화면에서 돌아왔을 때 결과 안내 (한 번만 보이고 주소에서 지운다)
+const GOOGLE_RESULT = {
+  connected: ["구글 계정을 연결했어요. 지금 동기화해 보세요"],
+  partial: ["캘린더·메일 권한 중 일부만 허용됐어요. 다시 연결할 때 모두 체크해 주세요", "fail"],
+  denied: ["구글 연결을 취소했어요", "fail"],
+  error: ["구글 연결에 실패했어요. 다시 시도해 주세요", "fail"],
+  unconfigured: ["서버에 구글 연동 설정이 아직 없어요", "fail"],
+};
+const googleResult = GOOGLE_RESULT[new URLSearchParams(location.search).get("google")];
+if (googleResult) {
+  toast(googleResult[0], googleResult[1] ? { type: googleResult[1] } : undefined);
+  history.replaceState(null, "", location.pathname);
+}
 
 load();

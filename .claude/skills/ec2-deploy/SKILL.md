@@ -6,6 +6,11 @@ description: AWS EC2(Ubuntu)에 보이스 플래너를 처음 세팅하거나 �
 # ec2-deploy
 
 ## 최초 1회 (EC2에서)
+가장 쉬운 방법: `scripts/ec2-setup.sh`가 아래 단계 + DB 계정·.env 생성 + nginx + certbot HTTPS까지 한 번에 한다 (다시 실행해도 데이터 유지).
+```bash
+curl -fsSL https://raw.githubusercontent.com/gimseungjin60/voice-planner/main/scripts/ec2-setup.sh -o setup.sh && bash setup.sh <도메인>
+```
+직접 하려면:
 ```bash
 sudo apt update && sudo apt install -y nginx mysql-server git
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs
