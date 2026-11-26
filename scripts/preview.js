@@ -193,7 +193,7 @@ app.post("/api/auth/logout", (req, res) => {
 
 // ---------- API: 할 일 ----------
 app.get("/api/tasks/summary", async (req, res) => {
-  await sleep(400);
+  await sleep(req.query.ai === "0" ? 50 : 1500); // 실제 서버처럼 AI 추천이 붙은 요청만 느리게
   const now = kst();
   const t0 = today();
   const week = addDays(t0, 7);

@@ -1663,6 +1663,10 @@ dialog[open] > * {
 .fab.open {
   display: none;
 }
+/* 음성 메모 화면엔 큰 마이크가 이미 있다. 마이크 두 개가 나란히 있으면 어느 쪽을 눌러야 할지 헷갈려서 비서 버튼은 숨긴다 */
+.page-memo .fab {
+  display: none;
+}
 
 /* ---------- 음성 비서 패널 ---------- */
 .assist {
@@ -4207,8 +4211,13 @@ body.page-admin {
     right: 16px;
     bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom));
     height: 52px;
-    padding: 0 8px;
+    padding: 0 16px 0 8px;
     font-size: 0;
+  }
+  /* 아이콘만 있으면 위쪽 음성 메모 마이크와 똑같아 보여서 짧게 '비서'라고 적는다 */
+  .fab::after {
+    content: "비서";
+    font-size: 14px;
   }
   /* 대시보드 타임라인: 시간 | 내용, 상태 칩은 내용 아래로 */
   .timeline > li {

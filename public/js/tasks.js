@@ -12,7 +12,7 @@ function card(t) {
   const { label, cls } = dueInfo(t.due_at);
   const src = SOURCE[t.source];
   // 제목 줄 오른쪽: 다음 단계로 옮기는 아이콘 버튼 1개 + '…' 메뉴(이전 단계로 · 삭제)
-  const step = { todo: ["doing", "chevron", "시작하기"], doing: ["done", "check", "완료"] }[t.status];
+  const step = { todo: ["doing", "play", "시작하기"], doing: ["done", "check", "완료"] }[t.status];
   const back = { doing: ["todo", "할 일로 되돌리기"], done: ["doing", "진행 중으로 되돌리기"] }[t.status];
   return `<article class="task${done ? " done" : ""}${t.priority === "high" && !done ? " high" : ""}">
     <button class="check${done ? " on" : ""}" data-move="${t.task_id}" data-to="${done ? "todo" : "done"}" aria-label="${done ? "완료 취소" : "완료로 표시"}: ${esc(t.title)}"></button>

@@ -6,15 +6,23 @@ const addDays = (ymd, n) => new Date(Date.parse(ymd) + n * 86400000).toISOString
 const hm = (v) => v.slice(11, 16);
 
 // ---------- 숫자 카드 + 오늘 이것부터 ----------
+// 숫자 카드는 AI 없이 바로(?ai=0), 오늘 이것부터는 AI 추천이 오면 그린다. 숫자 카드가 2~5초씩 비어 있지 않게
 async function loadSummary() {
+  const quick = api("/api/tasks/summary?ai=0", { quiet: true }).then((r) => r.ok && (renderCounts(r.data), true));
   const r = await api("/api/tasks/summary", { quiet: true });
+  const countsShown = await quick;
   if (!r.ok) {
-    ["sum-today", "sum-week", "sum-nearest"].forEach((id) => ($(id).textContent = "-"));
+    if (!countsShown) ["sum-today", "sum-week", "sum-nearest"].forEach((id) => ($(id).textContent = "-"));
     $("top-list").innerHTML = `<li class="empty"><div class="empty-icon"><svg class="i"><use href="#i-alert"/></svg></div>
       <p class="title">할 일을 불러오지 못했어요</p><p class="desc">저장한 할 일은 그대로 있어요. 잠시 뒤 새로고침해 주세요.</p></li>`;
     return;
   }
   const s = r.data;
+  renderCounts(s);
+  renderTop(s);
+}
+
+function renderCounts(s) {
   $("sum-today").textContent = s.today;
   $("sum-week").textContent = s.week;
   // 지난 마감은 제목 줄에서만 한 번 알린다. 없으면 오늘 남은 마감 수를 보여 준다
@@ -31,7 +39,9 @@ async function loadSummary() {
     $("sum-nearest").textContent = "없음";
     $("sum-nearest-title").textContent = "남은 마감이 없어요";
   }
+}
 
+function renderTop(s) {
   $("top-note").textContent = s.ai_ok ? "" : "마감 순으로 골랐어요";
   $("top-list").innerHTML = s.top.length
     ? s.top
