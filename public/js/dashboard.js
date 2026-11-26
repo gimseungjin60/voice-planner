@@ -211,7 +211,7 @@ async function sync({ auto = false } = {}) {
   syncBtn.querySelector("span").textContent = "동기화";
   if (!cal.ok && !mail.ok) return auto || toast(cal.error || "구글을 연결하면 동기화할 수 있어요", { type: "fail" });
   $("sync-note").textContent = "구글 캘린더·메일 · 방금 동기화";
-  if (!auto || mail.data?.found) toast(`동기화했어요 · 일정 ${cal.data?.synced ?? 0}개, 새 과제 후보 ${mail.data?.found ?? 0}개`, { type: "sync" });
+  if (!auto || mail.data?.found) toast(syncMessage(cal, mail), { type: cal.ok && mail.ok && !mail.data.ai_failed ? "sync" : "fail" });
   loadTimeline();
   loadInbox();
 }

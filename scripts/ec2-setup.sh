@@ -15,6 +15,12 @@ echo "== 1/7 패키지 설치 (nginx, mysql, git, certbot)"
 sudo apt-get update -y
 sudo apt-get install -y nginx mysql-server git curl openssl certbot python3-certbot-nginx
 
+# MySQL 시간대를 한국 시간으로: created_at 같은 DEFAULT CURRENT_TIMESTAMP가 앱(KST 문자열)과 맞도록 (EC2 기본은 UTC)
+if [ ! -f /etc/mysql/mysql.conf.d/zz-voiceplanner.cnf ]; then
+  printf "[mysqld]\ndefault-time-zone = '+09:00'\n" | sudo tee /etc/mysql/mysql.conf.d/zz-voiceplanner.cnf >/dev/null
+  sudo systemctl restart mysql
+fi
+
 echo "== 2/7 Node.js 20 + pm2"
 if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 20 ]; then
   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -50,6 +56,8 @@ if [ ! -f .env ]; then
   FRESH_DB=1
 else
   echo "   .env가 이미 있어서 건너뜀"
+  # 도메인을 나중에 붙인 경우: 구글 리디렉션 주소만 https 도메인으로 바꾼다
+  [ -n "$DOMAIN" ] && sed -i "s|^GOOGLE_REDIRECT_URI=.*|GOOGLE_REDIRECT_URI=https://${DOMAIN}/auth/google/callback|" .env
 fi
 
 npm ci --omit=dev

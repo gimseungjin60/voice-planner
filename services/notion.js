@@ -5,6 +5,7 @@ const { Client, APIErrorCode } = require("@notionhq/client");
 function fail(status, message) {
   const err = new Error(message);
   err.status = status;
+  err.expose = true; // 사용자에게 보여줄 안내 문구 (app.js 에러 처리기가 5xx여도 그대로 보낸다)
   return err;
 }
 
@@ -36,7 +37,7 @@ async function resolveTarget(notion, ref) {
     dataSourceId,
     title: props.find((p) => p.type === "title")?.name,
     date: find(["date"], /마감|due|deadline|날짜|date/i) || find(["date"], /./), // 이름이 안 맞으면 첫 날짜 속성
-    subject: find(["select", "rich_text"], /과목|subject|course|class/i),
+    subject: find(["select", "multi_select", "rich_text"], /과목|subject|course|class/i),
     priority: find(["select"], /우선|priority/i),
     types: Object.fromEntries(props.map((p) => [p.name, p.type])),
   };
@@ -53,8 +54,10 @@ function pageProps(target, t) {
     props[target.date] = { date: { start: time?.startsWith("23:59") ? d : `${d}T${time.slice(0, 5)}:00+09:00` } };
   }
   if (target.subject && t.subject_name) {
+    const name = t.subject_name.replace(/,/g, " ").slice(0, 100); // 노션 선택지 이름에는 쉼표를 못 쓴다
+    const type = target.types[target.subject];
     props[target.subject] =
-      target.types[target.subject] === "select" ? { select: { name: t.subject_name } } : { rich_text: [{ text: { content: t.subject_name } }] };
+      type === "select" ? { select: { name } } : type === "multi_select" ? { multi_select: [{ name }] } : { rich_text: [{ text: { content: t.subject_name } }] };
   }
   if (target.priority) props[target.priority] = { select: { name: PRIORITY[t.priority] || "보통" } };
   return props;

@@ -11,6 +11,7 @@ const configured = () => !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_C
 function fail(status, message) {
   const err = new Error(message);
   err.status = status;
+  err.expose = true; // 사용자에게 보여줄 안내 문구 (app.js 에러 처리기가 5xx여도 그대로 보낸다)
   return err;
 }
 
@@ -87,6 +88,11 @@ async function run(userId, fn) {
       await markExpired(userId);
       throw fail(409, "구글 연결이 만료됐어요. 연동 설정에서 다시 연결해 주세요");
     }
+    // Google Cloud에서 Calendar API·Gmail API를 '사용 설정'하지 않은 경우 (처음 세팅할 때 가장 흔한 실수)
+    const detail = JSON.stringify(err.response?.data || "");
+    if (code === 403 && /has not been used|is disabled|SERVICE_DISABLED|accessNotConfigured/.test(detail))
+      throw fail(503, "Google Cloud 콘솔에서 Calendar API와 Gmail API를 '사용 설정'해 주세요");
+    if (code === 403 && /rateLimit|quota/i.test(detail)) throw fail(429, "구글 요청 한도에 걸렸어요. 잠시 후 다시 시도해 주세요");
     if (code === 403) throw fail(403, "구글 권한이 부족해요. 다시 연결할 때 캘린더·메일 권한을 모두 허용해 주세요");
     throw fail(502, "구글 서버와 통신하지 못했어요. 잠시 후 다시 시도해 주세요");
   }
@@ -165,26 +171,35 @@ function deleteEvent(userId, externalId) {
   });
 }
 
+// Gmail snippet은 &#39; &quot; 같은 HTML 엔티티로 온다 → AI가 읽기 쉽게 글자로
+const ENTITY = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+const decodeEntities = (t) =>
+  t.replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, e) =>
+    e[0] === "#" ? String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : ENTITY[e.toLowerCase()] ?? m,
+  );
+
 // 최근 7일 받은 메일 중 skipIds에 없는 것: 보낸 사람·제목·snippet만 (본문은 받지 않는다)
 function recentMails(userId, skipIds, limit = 20) {
   return run(userId, async (auth) => {
     const gmail = google.gmail({ version: "v1", auth });
     const { data } = await gmail.users.messages.list({ userId: "me", q: "newer_than:7d -in:sent -in:chats -category:promotions -category:social", maxResults: 50 });
     const ids = (data.messages || []).map((m) => m.id).filter((id) => !skipIds.has(id)).slice(0, limit);
-    const mails = [];
-    for (const id of ids) {
-      const { data: m } = await gmail.users.messages.get({ userId: "me", id, format: "metadata", metadataHeaders: ["From", "Subject"] });
-      const header = (name) => m.payload?.headers?.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
-      mails.push({
-        id: m.id,
-        sender: header("From").slice(0, 255),
-        subject: header("Subject").slice(0, 500),
-        snippet: String(m.snippet || "").slice(0, 300),
-        received_at: kstFromMs(Number(m.internalDate)),
-      });
-    }
+    // 메일 20통 메타데이터를 한꺼번에 요청 (하나씩 기다리면 동기화가 몇 초씩 걸린다)
+    const mails = await Promise.all(
+      ids.map(async (id) => {
+        const { data: m } = await gmail.users.messages.get({ userId: "me", id, format: "metadata", metadataHeaders: ["From", "Subject"] });
+        const header = (name) => m.payload?.headers?.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
+        return {
+          id: m.id,
+          sender: header("From").slice(0, 255),
+          subject: header("Subject").slice(0, 500),
+          snippet: decodeEntities(String(m.snippet || "")).slice(0, 300),
+          received_at: kstFromMs(Number(m.internalDate)),
+        };
+      }),
+    );
     return mails;
   });
 }
 
-module.exports = { configured, authUrl, saveTokens, listEvents, insertEvent, deleteEvent, recentMails };
+module.exports = { decodeEntities, configured, authUrl, saveTokens, listEvents, insertEvent, deleteEvent, recentMails };

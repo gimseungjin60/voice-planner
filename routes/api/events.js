@@ -75,7 +75,9 @@ router.delete("/:id", async (req, res, next) => {
     const userId = req.session.user.user_id;
     const [[ev]] = await pool.query("SELECT event_id, provider, external_id FROM events WHERE event_id = ? AND user_id = ?", [req.params.id, userId]);
     if (!ev) return res.status(404).json({ ok: false, error: "일정을 찾을 수 없어요" });
-    if (ev.provider === "google" && ev.external_id) await google.deleteEvent(userId, ev.external_id);
+    // 구글 연결을 해제한 뒤라면 구글 쪽은 건드릴 수 없으니 우리 DB에서만 지운다
+    const [[g]] = await pool.query("SELECT 1 FROM integrations WHERE user_id = ? AND provider = 'google'", [userId]);
+    if (ev.provider === "google" && ev.external_id && g) await google.deleteEvent(userId, ev.external_id);
     await pool.query("DELETE FROM events WHERE event_id = ? AND user_id = ?", [ev.event_id, userId]);
     res.json({ ok: true, data: null });
   } catch (err) {

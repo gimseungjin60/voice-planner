@@ -71,8 +71,7 @@ $("g-sync-now").addEventListener("click", async (e) => {
   const [cal, mail] = await Promise.all([api("/api/sync/calendar", { method: "POST", quiet: true }), api("/api/sync/gmail", { method: "POST", quiet: true })]);
   b.classList.remove("loading");
   b.querySelector("span").textContent = "지금 동기화";
-  if (!cal.ok) toast(cal.error || "동기화하지 못했어요", { type: "fail" });
-  else toast(`동기화했어요 · 일정 ${cal.data.synced}개, 새 과제 후보 ${mail.data?.found ?? 0}개`, { type: "sync" });
+  toast(syncMessage(cal, mail), { type: cal.ok && mail.ok && !mail.data.ai_failed ? "sync" : "fail" });
   load();
 });
 
