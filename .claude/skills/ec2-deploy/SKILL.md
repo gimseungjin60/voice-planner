@@ -31,7 +31,7 @@ location / {
     proxy_read_timeout 120s;    # 받아쓰기 서버 제한 90초보다 길게 (기본 60초)
 }
 ```
-보안그룹 인바운드: 22(내 IP), 80·443(전체). 3306은 열지 않는다. 아웃바운드는 기본(전체 허용) 유지 → api.anthropic.com·api.openai.com 호출.
+보안그룹 인바운드: 22(브라우저 EC2 Instance Connect를 쓰면 0.0.0.0/0 또는 ec2-instance-connect 접두사 목록. 내 IP만 열면 브라우저 접속 실패), 80·443(전체). 3306은 열지 않는다. 아웃바운드는 기본(전체 허용) 유지 → api.anthropic.com·api.openai.com 호출.
 pm2는 기본 fork 모드 1개로 둔다 (브리핑 음성 캐시가 프로세스 메모리에 있어서 cluster 모드면 프로세스마다 따로 생성됨).
 
 ## 업데이트 배포
