@@ -8,7 +8,7 @@
    const hasDue = b.days.some((d) => d.deadlines.length);
    const topLabel = hasAllDay && hasDue ? "종일·마감" : hasAllDay ? "종일" : "마감";
    const blockStyle = (x) => `--s:${x.startMin - b.from * 60};--d:${x.endMin - x.startMin};--lane:${x.lane};--lanes:${x.lanes}${x.color ? `;--c:${x.color}` : ""}`;
-   const blockClass = (x) => ["wb-block", x.kind, b.level === "busy" ? "busy" : "", x.endMin - x.startMin <= 50 ? "short" : "", x.lanes > 1 ? "narrow" : ""].filter(Boolean).join(" ");
+   const blockClass = (x) => ["wb-block", x.kind, b.level === "busy" ? "busy" : "", x.endMin - x.startMin <= 50 ? "short" : "", x.lanes > 1 ? "narrow" : "", x.past ? "past" : ""].filter(Boolean).join(" ");
    const agenda = (d) => [
      ...d.allDay.map((x) => ({ type: "allday", sort: -1, x })),
      ...d.blocks.map((x) => ({ type: "block", sort: x.startMin, x })),
@@ -30,7 +30,7 @@
       <div class="wb-gutter"><span><%= topLabel %></span></div>
       <% b.days.forEach((d) => { %>
         <div class="wb-topcell<%= d.isToday ? ' today' : '' %>">
-          <% d.allDay.forEach((x) => { %><span class="wb-allday<%= b.level === 'busy' ? ' busy' : '' %>" title="<%= x.title %> (하루 종일)"><%= x.title %></span><% }) %>
+          <% d.allDay.forEach((x) => { %><span class="wb-allday<%= b.level === 'busy' ? ' busy' : '' %><%= x.past ? ' past' : '' %>"<%- x.color ? ` style="--c:${x.color}"` : '' %> title="<%= x.title %> (하루 종일)"><%= x.title %></span><% }) %>
           <% d.deadlines.forEach((x) => { %>
             <span class="wb-due<%= x.done ? ' done' : x.late ? ' late' : '' %>"<%- x.color ? ` style="--c:${x.color}"` : '' %> title="<%= x.title %> · <%= x.time %> 마감<%= x.subject ? ' · ' + x.subject : '' %>">
               <svg class="i" aria-hidden="true"><use href="#i-flag"/></svg><span class="t"><%= x.title %></span><span class="tm num"><%= x.time === '23:59' ? '' : x.time %></span>
@@ -78,7 +78,7 @@
                 <span class="body"><b><%= x.title %></b><% if (x.sub) { %><small><%= x.sub %></small><% } %></span>
               </li>
             <% } else if (type === 'allday') { %>
-              <li class="wb-aitem event<%= b.level === 'busy' ? ' busy' : '' %>"><span class="tm">하루 종일</span><span class="bar" aria-hidden="true"></span><span class="body"><b><%= x.title %></b></span></li>
+              <li class="wb-aitem event<%= b.level === 'busy' ? ' busy' : '' %>"<%- x.color ? ` style="--c:${x.color}"` : '' %>><span class="tm">하루 종일</span><span class="bar" aria-hidden="true"></span><span class="body"><b><%= x.title %></b></span></li>
             <% } else { %>
               <li class="wb-aitem dl<%= x.done ? ' done' : x.late ? ' late' : '' %>"<%- x.color ? ` style="--c:${x.color}"` : '' %>>
                 <span class="tm num"><%= x.time %></span><span class="bar" aria-hidden="true"><svg class="i" aria-hidden="true"><use href="#i-flag"/></svg></span>

@@ -20,6 +20,8 @@ const dowOf = (ymd) => new Date(ymd + "T12:00:00Z").getUTCDay();
 const toMin = (hms) => Number(hms.slice(0, 2)) * 60 + Number(hms.slice(3, 5));
 const hm = (min) =>
   `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+// 일정 색: 과목색(사용자가 고름)과 겹치지 않는 인디고. 수업은 과목색, 일정은 이 색 (애플·노션 캘린더처럼 옅은 바탕 + 왼쪽 띠)
+const EVENT_COLOR = "#5E5CE6";
 const safeColor = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || "") ? c : null);
 // 그 날짜가 속한 주의 월요일 (한국 시간 날짜 기준)
 const mondayOf = (ymd) => addDays(ymd, -((dowOf(ymd) + 6) % 7));
@@ -175,14 +177,14 @@ function buildBoard({ classes, events, tasks }, monday, level, nowKst) {
       }
       const title = showTitle ? e.title : "바쁨";
       if (startMin === 0 && endMin === 24 * 60) {
-        day.allDay.push({ kind: "event", title });
+        day.allDay.push({ kind: "event", title, color: showTitle ? EVENT_COLOR : null });
         continue;
       }
       day.blocks.push({
         kind: "event",
         title,
         sub: owner ? e.location : null,
-        color: null,
+        color: showTitle ? EVENT_COLOR : null,
         href: null,
         startMin,
         endMin: Math.max(endMin, startMin + 30),
@@ -212,9 +214,15 @@ function buildBoard({ classes, events, tasks }, monday, level, nowKst) {
   const all = days.flatMap((d) => d.blocks);
   const from = Math.max(0, Math.min(9, ...all.map((b) => Math.floor(b.startMin / 60))));
   const to = Math.min(24, Math.max(21, ...all.map((b) => Math.ceil(b.endMin / 60))));
+  // 지난 일정은 흐리게 (구글·애플 캘린더와 같은 관례)
+  const curMin = toMin(nowKst.slice(11));
   for (const d of days) {
     assignLanes(d.blocks);
-    d.blocks.forEach((b) => (b.range = `${hm(b.startMin)}~${hm(b.endMin)}`));
+    d.blocks.forEach((b) => {
+      b.range = `${hm(b.startMin)}~${hm(b.endMin)}`;
+      b.past = d.ymd < today || (d.ymd === today && b.endMin <= curMin);
+    });
+    d.allDay.forEach((x) => (x.past = d.ymd < today));
     d.busy = d.blocks.length + d.allDay.length;
   }
   const nowMin = today >= monday && today <= sunday ? toMin(nowKst.slice(11)) : null;

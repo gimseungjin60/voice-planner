@@ -4486,9 +4486,9 @@ body.page-share {
   left: calc(50% + 3px);
   width: calc(50% - 8px);
   height: 26px;
-  border-radius: 5px;
-  background: var(--ink);
-  color: #fff;
+  border-left: 2px solid #5e5ce6;
+  background: color-mix(in srgb, #5e5ce6 16%, #fff);
+  color: color-mix(in srgb, #5e5ce6 40%, var(--ink));
 }
 .level-art .f {
   bottom: 6px;
@@ -4705,13 +4705,20 @@ body.page-share {
 }
 .wb-allday {
   overflow: hidden;
-  background: var(--ink);
-  color: #fff;
+  border-left: 3px solid var(--c, var(--gray-dot));
+  border-radius: 2px 6px 6px 2px;
+  background: color-mix(in srgb, var(--c, #8e8e93) 16%, #fff);
+  color: color-mix(in srgb, var(--c, #8e8e93) 40%, var(--ink));
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.wb-allday.past {
+  opacity: 0.5;
+}
 .wb-allday.busy {
   border: 1px solid var(--line);
+  border-radius: 6px;
   background: var(--busy-fill);
   color: var(--ink-3);
 }
@@ -4775,18 +4782,26 @@ body.page-share {
 .wb-block em {
   font-style: normal;
 }
-.wb-block.class {
+/* 수업·일정 공통: 옅은 바탕 + 왼쪽 색 띠 + 같은 색조의 진한 제목 (애플·노션 캘린더 방식).
+   수업은 과목색, 일정은 인디고. 지난 일정은 흐리게 */
+.wb-block.class,
+.wb-block.event {
   border-left: 3px solid var(--c, var(--gray-dot));
-  background: color-mix(in srgb, var(--c, #8e8e93) 18%, #fff);
+  background: color-mix(in srgb, var(--c, #8e8e93) 16%, #fff);
+  color: color-mix(in srgb, var(--c, #8e8e93) 45%, var(--ink-2));
+}
+.wb-block.class b,
+.wb-block.event b {
+  color: color-mix(in srgb, var(--c, #8e8e93) 40%, var(--ink));
 }
 .wb-block.event {
-  padding-left: 9px;
-  border-radius: 8px;
-  background: var(--ink);
-  color: rgba(255, 255, 255, 0.72);
+  background: color-mix(in srgb, var(--c, #8e8e93) 12%, #fff);
 }
-.wb-block.event b {
-  color: #fff;
+.wb-block.past {
+  opacity: 0.5;
+}
+.wb-block.past:hover {
+  opacity: 0.8;
 }
 .wb-block.busy {
   border: 1px solid var(--line);
@@ -4868,7 +4883,9 @@ a.wb-block:hover {
   background: color-mix(in srgb, #6c8ef5 22%, #fff);
 }
 .wb-legend .lg-event {
-  background: var(--ink);
+  border-left: 3px solid #5e5ce6;
+  border-radius: 2px 4px 4px 2px;
+  background: color-mix(in srgb, #5e5ce6 16%, #fff);
 }
 .wb-legend .lg-busy {
   border: 1px solid var(--line-strong);
@@ -4951,9 +4968,7 @@ a.wb-block:hover {
   border-radius: 2px;
   background: var(--c, var(--gray-dot));
 }
-.wb-aitem.event .bar {
-  background: var(--ink);
-}
+
 .wb-aitem.busy .bar {
   width: 6px;
   border: 1px solid var(--line-strong);
