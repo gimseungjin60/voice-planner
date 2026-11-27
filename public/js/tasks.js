@@ -7,7 +7,7 @@ const ORDER = ["todo", "doing", "done"];
 const STATUS_LABEL = { todo: "할 일", doing: "진행 중", done: "완료" };
 // 할 일이 어디서 왔는지 짧은 배지로 (직접 추가는 배지 없음)
 // [로고 심볼, 이름, 색 클래스] — 서비스마다 고유 색 타일로 한눈에 구분 (Todoist·Akiflow 연동 칩 방식)
-const SOURCE = { ai: ["memo", "음성 메모", "memo"], voice: ["voice", "음성 비서", "voice"], gmail: ["gmail", "Gmail", "gmail"], notion: ["notion", "Notion", "notion"], google: ["gcal", "캘린더", "gcal"] };
+const SOURCE = { ai: ["memo", "음성 메모", "memo"], voice: ["voice", "음성 비서", "voice"], gmail: ["gmail", "Gmail", "gmail"], notion: ["notion", "Notion", "notion"], google: ["gcal", "캘린더", "gcal"], lms: ["lms", "LMS", "lms"] };
 
 // 출처 로고 타일만 (달력 칸처럼 좁은 곳)
 function srcLogo(t) {
@@ -25,8 +25,9 @@ function srcBadge(t) {
     : `<span class="src ${src[2]}" title="출처: ${src[1]}">${inner}</span>`;
 }
 
-// 출처 원본 주소: Gmail 메일 · 노션 페이지 · 음성 메모 상세. 없으면 null
+// 출처 원본 주소: Gmail 메일 · 노션 페이지 · LMS 과제 · 음성 메모 상세. 없으면 null
 function sourceLink(t) {
+  if (t.source === "lms") return /^https:\/\/[a-z0-9.-]+\.ac\.kr\/courses\/\d+\/assignments\/\d+$/.test(t.external_id || "") ? { href: t.external_id, label: "LMS에서 과제 열기", ext: true } : null;
   if (t.source === "gmail" && t.mail_id) return { href: `https://mail.google.com/mail/#all/${encodeURIComponent(t.mail_id)}`, label: "Gmail에서 원본 메일 열기", ext: true };
   if (t.external_id && /^[0-9a-f-]{32,36}$/i.test(t.external_id))
     return { href: `https://www.notion.so/${t.external_id.replace(/-/g, "")}`, label: t.source === "notion" ? "Notion에서 원본 열기" : "Notion에서 열기", ext: true };

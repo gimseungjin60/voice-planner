@@ -157,11 +157,14 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // 동기화 결과 안내 문구 (대시보드·연동 설정 공통). 캘린더·메일 중 하나만 실패해도 이유를 같이 보여준다
-// notion: /api/notion/sync 결과 (노션 미연결이면 생략하거나 실패 결과를 넘겨도 조용히 빠진다)
-function syncMessage(cal, mail, notion) {
+// notion: /api/notion/sync 결과, lms: /api/lms/sync 결과 (미연결이면 생략하거나 실패 결과를 넘겨도 조용히 빠진다)
+function syncMessage(cal, mail, notion, lms) {
   const n = notion?.ok ? notion.data.updated + notion.data.added + notion.data.removed : 0;
-  const notionPart = notion?.ok ? (n ? `노션 변경 ${n}개 반영` : "노션은 바뀐 것 없음") : null;
-  if (!cal.ok && !mail.ok) return notionPart ? `동기화했어요 · ${notionPart}` : cal.error || mail.error || "동기화하지 못했어요";
+  const extra = [];
+  if (notion?.ok) extra.push(n ? `노션 변경 ${n}개 반영` : "노션은 바뀐 것 없음");
+  if (lms?.ok) extra.push(lms.data.added ? `LMS 새 과제 ${lms.data.added}개` : lms.data.updated + lms.data.removed ? `LMS 변경 ${lms.data.updated + lms.data.removed}개 반영` : "LMS는 새 과제 없음");
+  else if (lms && !lms.not_connected && lms.error) extra.push(`LMS 실패: ${lms.error}`);
+  if (!cal.ok && !mail.ok) return extra.length ? `동기화했어요 · ${extra.join(", ")}` : cal.error || mail.error || "동기화하지 못했어요";
   const parts = [cal.ok ? `일정 ${cal.data.synced}개` : `일정 실패: ${cal.error}`];
   if (!mail.ok) parts.push(`메일 실패: ${mail.error}`);
   else if (mail.data.ai_failed) parts.push("메일 분석은 다음 동기화 때 다시 시도해요");
@@ -169,6 +172,6 @@ function syncMessage(cal, mail, notion) {
     if (mail.data.auto_added) parts.push(`중요 메일 ${mail.data.auto_added}개는 할 일에 바로 추가`);
     parts.push(`새 과제 후보 ${mail.data.found}개`);
   }
-  if (notionPart) parts.push(notionPart);
+  parts.push(...extra);
   return `동기화했어요 · ${parts.join(", ")}`;
 }
