@@ -75,6 +75,7 @@ router.post("/", async (req, res, next) => {
 });
 
 // 구글 일정이면 구글 캘린더에서도 지운다. 구글 쪽 삭제가 실패하면 우리 DB도 그대로 둔다 (다음 동기화 때 되살아나지 않게)
+// 단 구글 연결이 만료된 동안에는 앱에서만 지우고 google_kept로 알린다 (다시 연결하면 구글에 남은 일정이 다시 들어올 수 있음)
 router.delete("/:id", async (req, res, next) => {
   try {
     const userId = req.session.user.user_id;
@@ -82,9 +83,17 @@ router.delete("/:id", async (req, res, next) => {
     if (!ev) return res.status(404).json({ ok: false, error: "일정을 찾을 수 없어요" });
     // 구글 연결을 해제한 뒤라면 구글 쪽은 건드릴 수 없으니 우리 DB에서만 지운다
     const [[g]] = await pool.query("SELECT 1 FROM integrations WHERE user_id = ? AND provider = 'google'", [userId]);
-    if (ev.provider === "google" && ev.external_id && g) await google.deleteEvent(userId, ev.external_id);
+    let googleKept = false;
+    if (ev.provider === "google" && ev.external_id && g) {
+      try {
+        await google.deleteEvent(userId, ev.external_id);
+      } catch (err) {
+        if (err.status !== 409) throw err; // 409 = 구글 연결 만료
+        googleKept = true;
+      }
+    }
     await pool.query("DELETE FROM events WHERE event_id = ? AND user_id = ?", [ev.event_id, userId]);
-    res.json({ ok: true, data: null });
+    res.json({ ok: true, data: googleKept ? { google_kept: true, message: "구글 연결이 만료돼서 앱에서만 지웠어요. 구글 캘린더에는 남아 있어요" } : null });
   } catch (err) {
     next(err);
   }

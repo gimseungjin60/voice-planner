@@ -51,6 +51,27 @@ function parseBody(b = {}) {
   return { name, professor: String(b.professor || "").trim().slice(0, 50) || null, color, schedules };
 }
 
+// 시간표 겹침 검사: 입력끼리 + 내 다른 과목 수업과. 겹치면 안내 문구, 없으면 null (음성 비서 add_class와 같은 기준)
+const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
+const hm = (t) => String(t).slice(0, 5);
+async function scheduleClash(userId, schedules, exceptSubjectId = null) {
+  for (let i = 0; i < schedules.length; i++)
+    for (let j = i + 1; j < schedules.length; j++) {
+      const [a, b] = [schedules[i], schedules[j]];
+      if (Number(a.day_of_week) === Number(b.day_of_week) && hm(a.start_time) < hm(b.end_time) && hm(b.start_time) < hm(a.end_time))
+        return `${WEEK[a.day_of_week]}요일 수업 시간이 서로 겹쳐요`;
+    }
+  for (const s of schedules) {
+    const [[c]] = await pool.query(
+      `SELECT s.name, sc.start_time, sc.end_time FROM schedules sc JOIN subjects s ON s.subject_id = sc.subject_id
+       WHERE s.user_id = ? AND NOT (s.subject_id <=> ?) AND sc.day_of_week = ? AND sc.start_time < ? AND sc.end_time > ? LIMIT 1`,
+      [userId, exceptSubjectId, Number(s.day_of_week), `${hm(s.end_time)}:00`, `${hm(s.start_time)}:00`],
+    );
+    if (c) return `${WEEK[s.day_of_week]}요일 ${hm(c.start_time)}~${hm(c.end_time)} ${c.name} 수업과 겹쳐요`;
+  }
+  return null;
+}
+
 async function saveSchedules(conn, subjectId, schedules) {
   await conn.query("DELETE FROM schedules WHERE subject_id = ?", [subjectId]);
   for (const s of schedules)
@@ -74,6 +95,13 @@ router.get("/", async (req, res, next) => {
 router.post("/", async (req, res, next) => {
   const v = parseBody(req.body);
   if (typeof v === "string") return res.status(400).json({ ok: false, error: v });
+  let clash;
+  try {
+    clash = await scheduleClash(req.session.user.user_id, v.schedules);
+  } catch (err) {
+    return next(err);
+  }
+  if (clash) return res.status(409).json({ ok: false, error: clash });
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -98,6 +126,13 @@ router.post("/", async (req, res, next) => {
 router.put("/:id", async (req, res, next) => {
   const v = parseBody(req.body);
   if (typeof v === "string") return res.status(400).json({ ok: false, error: v });
+  let clash;
+  try {
+    clash = await scheduleClash(req.session.user.user_id, v.schedules, Number(req.params.id));
+  } catch (err) {
+    return next(err);
+  }
+  if (clash) return res.status(409).json({ ok: false, error: clash });
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
