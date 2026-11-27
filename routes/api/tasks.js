@@ -9,7 +9,9 @@ router.use(requireLogin);
 
 const STATUS = ["todo", "doing", "done"];
 const PRIORITY = ["low", "mid", "high"];
-const TASK_SELECT = `SELECT t.*, s.name AS subject_name, s.color AS subject_color
+// mail_id: 메일 후보에서 수락한 할 일의 Gmail 메시지 ID (출처 메일로 바로 가기)
+const TASK_SELECT = `SELECT t.*, s.name AS subject_name, s.color AS subject_color,
+  (SELECT i.external_id FROM inbox_items i WHERE i.task_id = t.task_id AND i.user_id = t.user_id LIMIT 1) AS mail_id
   FROM tasks t LEFT JOIN subjects s ON s.subject_id = t.subject_id`;
 
 // 주간 리포트: 이번 주(월~일, 한국 시간) 완료 수·지난주 대비·요일별·과목별 완료율

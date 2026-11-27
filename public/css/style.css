@@ -2755,24 +2755,24 @@ dialog[open] > * {
   background: none;
   font-size: 13px;
 }
-/* 출처(음성 메모·메일·음성 비서)는 아이콘만. 이름은 마우스를 올리거나 스크린 리더로 */
+/* 출처 배지 (음성 메모·음성 비서·Gmail·Notion·구글 캘린더): 아이콘 + 짧은 이름 */
 .task-meta .src {
-  width: 22px;
-  padding: 0;
-  justify-content: center;
-  background: none;
+  gap: 4px;
+  padding: 0 6px;
+  background: var(--fill-1);
   color: var(--ink-3);
+  font-size: 12px;
+}
+a.src {
+  text-decoration: none;
+}
+a.src:hover {
+  background: var(--fill-hover);
+  color: var(--ink);
 }
 .task-meta .src .i {
-  width: 14px;
-  height: 14px;
-}
-.task-meta .src-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
+  width: 13px;
+  height: 13px;
 }
 .more-done {
   width: 100%;
@@ -2827,7 +2827,8 @@ dialog[open] > * {
   background: var(--bg);
   box-shadow: var(--shadow-toast);
 }
-.pop .menu button {
+.pop .menu button,
+.pop .menu a {
   display: flex;
   align-items: center;
   width: 100%;
@@ -2841,7 +2842,11 @@ dialog[open] > * {
   text-align: left;
   cursor: pointer;
 }
-.pop .menu button:hover {
+.pop .menu a {
+  text-decoration: none;
+}
+.pop .menu button:hover,
+.pop .menu a:hover {
   background: var(--fill-hover);
 }
 .pop .menu button.danger {

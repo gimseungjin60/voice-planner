@@ -54,7 +54,8 @@ let tasks = [
   { task_id: 9, subject_id: 2, memo_id: null, title: "DB 실습 3 제출", due_at: at(0, "12:00"), priority: "mid", status: "done", source: "manual", completed_at: at(0, "11:20") },
   { task_id: 10, subject_id: 1, memo_id: null, title: "발표 자료 초안 작성", due_at: at(1, "23:59"), priority: "high", status: "done", source: "voice", completed_at: at(0, "10:05") },
   { task_id: 11, subject_id: 3, memo_id: null, title: "OS 2장 정리", due_at: at(-8, "23:59"), priority: "low", status: "done", source: "manual", completed_at: at(-9, "21:00") },
-  { task_id: 8, subject_id: 1, memo_id: null, title: "기말 발표 리허설", due_at: at(3, "15:00"), priority: "mid", status: "todo", source: "gmail" },
+  { task_id: 8, subject_id: 1, memo_id: null, title: "기말 발표 리허설", due_at: at(3, "15:00"), priority: "mid", status: "todo", source: "gmail", mail_id: "18c0ffee12345678" },
+  { task_id: 12, subject_id: 1, memo_id: null, title: "심화응용프로젝트 최종발표", due_at: at(10, "23:59"), priority: "mid", status: "todo", source: "notion", external_id: "20789f05-3ce5-80ce-9b0c-ed47c18d7ba8" },
 ];
 const taskOut = (t) => withSubject({ completed_at: null, created_at: at(-5, "10:00"), ...t });
 

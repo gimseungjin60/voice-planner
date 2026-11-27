@@ -5,12 +5,24 @@ let subjectFilter = "";
 const board = document.querySelector(".board");
 const ORDER = ["todo", "doing", "done"];
 const STATUS_LABEL = { todo: "할 일", doing: "진행 중", done: "완료" };
-const SOURCE = { ai: ["mic", "음성 메모"], voice: ["chat", "음성 비서"], gmail: ["mail", "메일"] }; // 직접 추가는 배지 없음
+// 할 일이 어디서 왔는지 짧은 배지로 (직접 추가는 배지 없음)
+const SOURCE = { ai: ["mic", "음성 메모"], voice: ["chat", "음성 비서"], gmail: ["mail", "Gmail"], notion: ["doc", "Notion"], google: ["calendar", "구글 캘린더"] };
+
+// 출처 원본 주소: Gmail 메일 · 노션 페이지 · 음성 메모 상세. 없으면 null
+function sourceLink(t) {
+  if (t.source === "gmail" && t.mail_id) return { href: `https://mail.google.com/mail/#all/${encodeURIComponent(t.mail_id)}`, label: "Gmail에서 원본 메일 열기", ext: true };
+  if (t.external_id && /^[0-9a-f-]{32,36}$/i.test(t.external_id))
+    return { href: `https://www.notion.so/${t.external_id.replace(/-/g, "")}`, label: t.source === "notion" ? "Notion에서 원본 열기" : "Notion에서 열기", ext: true };
+  if ((t.source === "ai" || t.source === "voice") && t.memo_id) return { href: `/memos/${t.memo_id}`, label: "원본 음성 메모 보기", ext: false };
+  return null;
+}
+const linkAttrs = (l) => `href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="noopener"' : ""}`;
 
 function card(t) {
   const done = t.status === "done";
   const { label, cls } = dueInfo(t.due_at);
   const src = SOURCE[t.source];
+  const link = sourceLink(t);
   // 제목 줄 오른쪽: 다음 단계로 옮기는 아이콘 버튼 1개 + '…' 메뉴(이전 단계로 · 삭제)
   const step = { todo: ["doing", "play", "시작하기"], doing: ["done", "check", "완료"] }[t.status];
   const back = { doing: ["todo", "할 일로 되돌리기"], done: ["doing", "진행 중으로 되돌리기"] }[t.status];
@@ -22,6 +34,7 @@ function card(t) {
       <details class="pop">
         <summary class="icon-btn" aria-label="더 보기: ${esc(t.title)}"><svg class="i sm" aria-hidden="true"><use href="#i-more"/></svg></summary>
         <div class="menu">
+          ${link ? `<a ${linkAttrs(link)}>${link.label}</a>` : ""}
           ${back ? `<button data-move="${t.task_id}" data-to="${back[0]}">${back[1]}</button>` : ""}
           <button class="danger" data-del="${t.task_id}">삭제</button>
         </div>
@@ -31,7 +44,7 @@ function card(t) {
       ${t.subject_name ? chip(t.subject_name, t.subject_color, true) : ""}
       ${done ? (t.completed_at ? `<span class="due done">완료 ${md(t.completed_at)}</span>` : "") : t.due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}
       ${t.priority === "high" && !done ? `<span class="prio-high"><svg class="i sm" aria-hidden="true"><use href="#i-flag"/></svg>중요</span>` : ""}
-      ${src && !done ? `<span class="src" title="${src[1]}에서 추가"><svg class="i" aria-hidden="true"><use href="#i-${src[0]}"/></svg><span class="src-label">${src[1]}에서 추가</span></span>` : ""}
+      ${src ? (link ? `<a class="src" ${linkAttrs(link)} title="${link.label}">` : `<span class="src" title="출처: ${src[1]}">`) + `<svg class="i" aria-hidden="true"><use href="#i-${src[0]}"/></svg><span class="src-label">${src[1]}</span>` + (link ? "</a>" : "</span>") : ""}
     </div>
   </article>`;
 }
@@ -87,6 +100,15 @@ board.addEventListener("click", async (e) => {
     render();
     toast("할 일을 삭제했어요");
   }
+});
+
+// 카드에서 우클릭: 브라우저 메뉴 대신 카드의 '…' 메뉴(원본 열기 · 되돌리기 · 삭제)를 연다
+board.addEventListener("contextmenu", (e) => {
+  const pop = e.target.closest(".task")?.querySelector("details.pop");
+  if (!pop || e.target.closest("a")) return;
+  e.preventDefault();
+  document.querySelectorAll("details.pop[open]").forEach((m) => m !== pop && (m.open = false));
+  pop.open = true;
 });
 
 const form = document.getElementById("task-form");
