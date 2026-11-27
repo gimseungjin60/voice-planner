@@ -3230,6 +3230,31 @@ a.src:hover .src-ext { opacity: 1; }
   background: #fff;
   box-shadow: var(--focus-ring);
 }
+.candidate .c-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 120px;
+}
+.candidate .c-main .c-title {
+  flex: none;
+  width: 100%;
+}
+.candidate .c-match {
+  align-self: flex-start;
+  margin: 2px 0 0 6px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--fill-1);
+  line-height: 1.5;
+}
+.candidate.upd .c-match {
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+}
 .candidate-meta {
   display: flex;
   flex: none;
@@ -3237,6 +3262,31 @@ a.src:hover .src-ext { opacity: 1; }
 }
 .candidate .c-due {
   width: 214px;
+}
+/* 폰: 제목 줄 아래로 마감·우선순위·과목을 내려서 가로로 넘치지 않게 */
+@media (max-width: 760px) {
+  .cand-head {
+    flex-wrap: wrap;
+    gap: 2px 10px;
+  }
+  .candidate {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding: 12px 0;
+  }
+  .candidate-meta {
+    flex-wrap: wrap;
+    width: 100%;
+    padding-left: 32px;
+  }
+  .candidate .c-due {
+    flex: 1 1 100%;
+    width: auto;
+  }
+  .candidate-meta select {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 /* ---------- 메모 목록 · 상세 ---------- */

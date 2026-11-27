@@ -291,6 +291,17 @@ app.post("/api/memos", async (req, res) => {
   let candidates = [];
   if (lecture) {
     memo.summary = "• 오늘 강의의 핵심 개념을 정리했어요\n• 예시와 함께 원리를 설명했어요\n• 다음 시간 내용과 이어져요\n\n[시험 포인트]\n★ 개념 간 차이를 비교하는 문제";
+  } else if (/중복/.test(transcript)) {
+    // 이미 있는 할 일과 겹치는 후보 화면 확인용: 같음 / 마감 변경 / 새 할 일
+    const open = tasks.filter((t) => t.status !== "done" && t.due_at);
+    const [a, b] = open;
+    memo.summary = "기존 할 일 확인 · 마감 변경 · 새 할 일";
+    const m = (t) => ({ task_id: t.task_id, title: t.title, due_at: t.due_at.slice(0, 16), priority: t.priority });
+    candidates = [
+      a && { title: a.title, due_at: a.due_at.slice(0, 16), priority: a.priority, subject_id: a.subject_id, kind: "same", changes: [], match: m(a) },
+      b && { title: b.title, due_at: at(9, "18:00").slice(0, 16), priority: b.priority, subject_id: b.subject_id, kind: "update", changes: ["due_at"], match: m(b) },
+      { title: "발표 리허설", due_at: at(5, "20:00").slice(0, 16), priority: "mid", subject_id: null, kind: "new", match: null },
+    ].filter(Boolean);
   } else if (/ERD|과제|퀴즈|시험|리포트|제출/.test(transcript)) {
     memo.summary = `${guess?.name || "할 일"}: ${transcript.slice(0, 40)}${transcript.length > 40 ? "…" : ""}`;
     candidates = [
@@ -312,9 +323,17 @@ app.post("/api/memos/transcribe", async (req, res) => {
 });
 app.post("/api/memos/:id/confirm", (req, res) => {
   const list = req.body.tasks || [];
-  for (const t of list)
+  let updated = 0;
+  for (const t of list) {
+    const ex = t.task_id && tasks.find((x) => x.task_id === t.task_id);
+    if (ex) {
+      Object.assign(ex, { title: t.title, priority: t.priority, subject_id: Number(t.subject_id) || null, due_at: t.due_at ? t.due_at.replace("T", " ").slice(0, 16) + ":00" : null });
+      updated++;
+      continue;
+    }
     tasks.push({ task_id: ++state.seq, subject_id: Number(t.subject_id) || null, memo_id: Number(req.params.id), title: t.title, due_at: t.due_at ? t.due_at.replace("T", " ").slice(0, 16) + ":00" : null, priority: t.priority, status: "todo", source: "ai" });
-  ok(res, { saved: list.length }, 201);
+  }
+  ok(res, { saved: list.length - updated, updated }, 201);
 });
 app.delete("/api/memos/:id", (req, res) => {
   memos = memos.filter((m) => m.memo_id !== Number(req.params.id));

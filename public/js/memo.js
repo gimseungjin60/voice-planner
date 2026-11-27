@@ -295,12 +295,23 @@ analyzeBtn.addEventListener("click", async () => {
   updateAnalyze();
 });
 
+// "2026-12-03 09:55" → "12/3(목) 09:55" (23:59는 날짜만)
+const WEEK_KO = "일월화수목금토";
+function shortDue(v) {
+  if (!v) return "없음";
+  const [d, tm] = String(v).replace("T", " ").split(" ");
+  const dt = new Date(`${d}T12:00:00`);
+  const time = tm && tm.slice(0, 5) !== "23:59" ? ` ${tm.slice(0, 5)}` : "";
+  return `${dt.getMonth() + 1}/${dt.getDate()}(${WEEK_KO[dt.getDay()]})${time}`;
+}
+
 function renderCandidates(list) {
   const box = $("candidates");
   box.innerHTML = "";
   $("cand-wrap").classList.toggle("hidden", !list.length);
   $("no-cand").classList.toggle("hidden", !!list.length);
-  $("cand-title").textContent = `할 일 후보 ${list.length}개`;
+  const dup = list.filter((t) => t.kind === "same").length;
+  $("cand-title").textContent = `할 일 후보 ${list.length}개` + (dup ? ` · ${dup}개는 이미 있어요` : "");
   $("confirm-btn").disabled = false;
   $("confirm-btn").querySelector("span").textContent = "할 일로 저장";
   for (const t of list) {
@@ -310,6 +321,21 @@ function renderCandidates(list) {
     el.querySelector(".c-priority").value = t.priority;
     el.querySelector(".c-subject").value = t.subject_id || "";
     const cb = el.querySelector(".check");
+    // 이미 있는 할 일과 같으면 체크 해제, 마감이 바뀌었으면 기존 할 일을 고치는 후보로
+    if (t.match) {
+      el.dataset.taskId = t.match.task_id;
+      el.querySelector(".c-title").value = t.match.title;
+      const note = el.querySelector(".c-match");
+      note.classList.remove("hidden");
+      if (t.kind === "same") {
+        cb.checked = false;
+        el.classList.add("off", "dup");
+        note.textContent = "이미 있는 할 일이에요";
+      } else {
+        el.classList.add("upd");
+        note.textContent = `마감 변경 · 원래 ${shortDue(t.match.due_at)}`;
+      }
+    }
     cb.addEventListener("change", () => el.classList.toggle("off", !cb.checked));
     box.append(el);
   }
@@ -323,6 +349,7 @@ $("confirm-btn").addEventListener("click", async () => {
       due_at: el.querySelector(".c-due").value || null,
       priority: el.querySelector(".c-priority").value,
       subject_id: el.querySelector(".c-subject").value || null,
+      task_id: el.dataset.taskId ? Number(el.dataset.taskId) : null,
     }));
   if (!tasks.length) return toast("저장할 할 일을 체크하세요", { type: "fail" });
   const btn = $("confirm-btn");
@@ -332,7 +359,9 @@ $("confirm-btn").addEventListener("click", async () => {
   if (!r.ok) return;
   btn.disabled = true;
   btn.querySelector("span").textContent = "저장했어요";
-  toast(`할 일 ${r.data.saved}개를 저장했어요`, { action: { label: "할 일 보기", onClick: () => (location.href = "/tasks") } });
+  const { saved, updated } = r.data;
+  const msg = saved && updated ? `할 일 ${saved}개를 저장하고 ${updated}개를 고쳤어요` : updated ? `기존 할 일 ${updated}개를 고쳤어요` : `할 일 ${saved}개를 저장했어요`;
+  toast(msg, { action: { label: "할 일 보기", onClick: () => (location.href = "/tasks") } });
 });
 
 updateAnalyze();

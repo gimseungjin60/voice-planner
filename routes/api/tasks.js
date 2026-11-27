@@ -56,8 +56,12 @@ async function weeklyReport(userId) {
 // 'YYYY-MM-DDTHH:mm' / 'YYYY-MM-DD HH:mm' / 'YYYY-MM-DD' → 'YYYY-MM-DD HH:mm:ss', 빈 값은 null, 이상하면 undefined
 function toDatetime(v) {
   if (v === null || v === "" || v === undefined) return null;
-  const m = String(v).match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?/);
-  return m ? `${m[1]} ${m[2] || "23:59"}:00` : undefined;
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (!m) return undefined;
+  // 2026-02-30, 25:00 같은 없는 날짜·시각은 MySQL 오류(500) 대신 400으로
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  if (d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3] || (m[4] && (+m[4] > 23 || +m[5] > 59))) return undefined;
+  return `${m[1]}-${m[2]}-${m[3]} ${m[4] ? `${m[4]}:${m[5]}` : "23:59"}:00`;
 }
 
 // 남의 과목 ID를 넣지 못하게: 내 과목이면 그 ID, 아니면 null

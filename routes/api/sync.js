@@ -114,7 +114,16 @@ router.post("/gmail", async (req, res, next) => {
            VALUES (?, 'gmail', ?, ?, ?, ?, ?, ?, ?)`,
           [userId, m.id, m.sender, m.subject, m.received_at, subjectId(f.subject), f.title, f.due_at],
         );
-        if (ins.affectedRows && f.important && f.due_at && (await addAsTask(userId, ins.insertId, subjectId(f.subject), f))) autoAdded++;
+        // 같은 과목·같은 날 마감인 안 끝난 할 일이 이미 있으면(음성 메모로 먼저 넣은 경우 등) 자동 추가하지 않고 후보로 남긴다
+        const dupOnDay =
+          f.due_at &&
+          (
+            await pool.query(
+              "SELECT 1 FROM tasks WHERE user_id = ? AND status <> 'done' AND subject_id <=> ? AND DATE(due_at) = ? LIMIT 1",
+              [userId, subjectId(f.subject), f.due_at.slice(0, 10)],
+            )
+          )[0].length > 0;
+        if (ins.affectedRows && f.important && f.due_at && !dupOnDay && (await addAsTask(userId, ins.insertId, subjectId(f.subject), f))) autoAdded++;
       } else {
         await pool.query("INSERT IGNORE INTO inbox_items (user_id, provider, external_id, status) VALUES (?, 'gmail', ?, 'ignored')", [userId, m.id]);
       }

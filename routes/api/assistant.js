@@ -14,8 +14,9 @@ router.use(requireLogin);
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 const HM = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+// 제안 수락: 짧은 동의 말만 (문장 앞이 "어"·"응"이어도 "어 아니 다른 시간"처럼 뒤에 말이 이어지면 수락이 아님)
 const ACCEPT =
-  /^(좋아|좋아요|좋습니다|응|어|그래|그래요|네|넵|예|ㅇㅇ|ㅇㅋ|오케이|ok|okay|콜|그걸로|거기로)/i;
+  /^(좋아|좋아요|좋습니다|응|어|그래|그래요|네|넵|예|ㅇㅇ|ㅇㅋ|오케이|ok|okay|콜|그걸로|거기로|그렇게해|그렇게해줘|추가해|추가해줘|넣어줘)[.!~요]*$/i;
 const PALETTE = [
   "#6C8EF5",
   "#F5A86C",
@@ -217,6 +218,19 @@ async function runTool(req, name, input) {
       const dueAt = toDatetime(input.due_at) || null;
       const subjectId = await ownSubjectId(userId, await subjectIdByName(userId, input.subject));
       const priority = ["low", "mid", "high"].includes(input.priority) ? input.priority : "mid";
+      // 같은 과목·같은 이름의 안 끝난 할 일이 있으면 새로 만들지 않고 마감만 맞춘다
+      const [[dup]] = await pool.query(
+        `SELECT task_id, due_at FROM tasks WHERE user_id = ? AND status <> 'done' AND subject_id <=> ?
+         AND REPLACE(LOWER(title), ' ', '') = REPLACE(LOWER(?), ' ', '') LIMIT 1`,
+        [userId, subjectId, title],
+      );
+      if (dup) {
+        if (dueAt && dueAt !== dup.due_at) {
+          await pool.query("UPDATE tasks SET due_at = ? WHERE task_id = ? AND user_id = ?", [dueAt, dup.task_id, userId]);
+          return { ok: true, task_id: dup.task_id, due_at: dueAt, updated: true, label: `마감 변경 · ${title}` };
+        }
+        return { ok: true, task_id: dup.task_id, already: true, label: `이미 있는 할 일 · ${title}` };
+      }
       const [r] = await pool.query(
         "INSERT INTO tasks (user_id, subject_id, title, due_at, priority, source) VALUES (?, ?, ?, ?, ?, 'voice')",
         [userId, subjectId, title, dueAt, priority],
