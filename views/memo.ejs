@@ -83,7 +83,10 @@
 <template id="cand-tpl">
   <div class="candidate">
     <input type="checkbox" class="check" checked aria-label="저장할 할 일 선택" />
-    <input class="c-title" maxlength="200" aria-label="할 일 제목" style="margin-left: 0" />
+    <div class="c-main">
+      <input class="c-title" maxlength="200" aria-label="할 일 제목" style="margin-left: 0" />
+      <span class="c-match hidden"></span>
+    </div>
     <div class="candidate-meta">
       <input class="c-due pill" type="datetime-local" aria-label="마감" />
       <select class="c-priority pill" aria-label="우선순위"><option value="high">높음</option><option value="mid">보통</option><option value="low">낮음</option></select>

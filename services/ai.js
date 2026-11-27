@@ -132,7 +132,11 @@ function calendar(today) {
 // 1. 음성 메모 → 요약 + 할 일 후보
 //    timetable: [{name, day_of_week, start_time}] → 시각 없는 시험·퀴즈·발표를 그 과목 수업 시작 시각으로 맞출 때 사용
 //    summary는 메모 목록·상세의 제목이 되므로 상대 날짜("다음 주", "오늘 밤") 대신 실제 날짜로 (며칠 뒤에 봐도 맞게)
-async function extractTasks({ userId, memoId, transcript, subjects, today, now, timetable = [] }) {
+//    existing: 열린 할 일 [{task_id, title, due_at, priority, subject}] → 같은 일이면 match_id로 알려줘서 중복 저장을 막는다
+async function extractTasks({ userId, memoId, transcript, subjects, today, now, timetable = [], existing = [] }) {
+  const ex = existing.length
+    ? existing.map((t) => `${t.task_id}|${t.title}|${t.subject || "-"}|${t.due_at ? String(t.due_at).slice(0, 16) : "없음"}`).join("\n")
+    : "(없음)";
   const tt = timetable.length
     ? timetable.map((c) => `${c.name} ${WEEK[c.day_of_week]} ${String(c.start_time).slice(0, 5)}`).join(", ")
     : "(없음)";
@@ -151,14 +155,18 @@ async function extractTasks({ userId, memoId, transcript, subjects, today, now, 
 - due_at: 상대 날짜("내일", "모레", "다음 주 수요일", "이번 주 금요일")는 위 달력으로 실제 날짜로 바꾼다. "다음 주"는 위 달력의 "다음 주" 줄에서 고른다. "다음 주"가 없이 요일만 말하면("목요일") 오늘 이후 가장 가까운 그 요일. 한 메모 안에서 둘이 같은 날이 되어도 그대로 둔다.
   시각: 말한 시각 그대로("저녁 7시" → 19:00). "오늘 밤·자기 전"은 23:00. 시각 없는 시험·퀴즈·발표는 그 과목이 그날 시간표에 있으면 수업 시작 시각, 아니면 09:00. 그 밖에 시각이 없으면 23:59. 날짜를 알 수 없으면 null.
 - subject: 내 과목 목록의 이름 그대로만. 띄어쓰기·줄임말이 달라도 같은 과목이면 그 이름으로("스프링" → 스프링프레임워크, "피지컬 ai" → 피지컬AI응용). 과목과 상관없는 개인 일은 null.
+- match_id: 아래 [이미 있는 할 일] 중에 같은 일이 있으면 그 번호, 없으면 null. 같은 과목의 같은 과제·시험·약속이면 마감이 바뀌었어도 같은 일이다("운영체제 과제 제출"과 "OS 과제 내기"). 과목이 다르거나 다른 회차·다른 장이면 다른 일.
 - priority: 시험·퀴즈·과제 제출·발표는 high, 수업 복습·준비물은 mid, 개인 일은 low (단 사용자가 중요하다고 말하면 high).
+
+[이미 있는 할 일] (번호|제목|과목|마감)
+${ex}
 
 [요약 summary]
 - 메모 목록에서 제목으로 보인다. 35자 이내 한 줄, 핵심만 명사형으로. 여러 건이면 " · "로 잇는다 각 건은 "무엇 + 날짜" 순서로 통일 ("운영체제 과제 12/2(수)까지").
 - 날짜는 "다음 주", "내일", "오늘 밤" 같은 상대 표현을 쓰지 말고 "12/2(수)"처럼 실제 날짜로 쓴다 (나중에 봐도 맞게). 괄호를 겹치지 말고 "12/4(금)까지", "12/4(금) 18:00"처럼 쓴다.
 - 할 일이 없는 메모는 내용을 그대로 짧게 요약한다.
 
-JSON만 출력: {"summary":"...","subject":"메모 전체의 대표 과목명 또는 null","tasks":[{"title":"...","due_at":"YYYY-MM-DD HH:mm 또는 null","priority":"high|mid|low","subject":"과목명 또는 null"}]}`;
+JSON만 출력: {"summary":"...","subject":"메모 전체의 대표 과목명 또는 null","tasks":[{"title":"...","due_at":"YYYY-MM-DD HH:mm 또는 null","priority":"high|mid|low","subject":"과목명 또는 null","match_id":null}]}`;
   // 가끔 빈 응답·JSON 깨짐이 나서 한 번만 다시 시도 (둘 다 ai_logs에 남음)
   const r =
     (await call({ feature: "extract", userId, memoId, system, input: transcript })) ||
@@ -176,6 +184,7 @@ JSON만 출력: {"summary":"...","subject":"메모 전체의 대표 과목명 �
         priority: ["low", "mid", "high"].includes(t.priority) ? t.priority : "mid",
         // 할 일마다 과목이 다를 수 있다. 과목을 정하지 않은 할 일만 메모 대표 과목으로
         subject: t.subject === null ? null : pick(t.subject) || pick(r.subject),
+        match_id: Number.isInteger(t.match_id) ? t.match_id : null,
       })),
   };
 }
