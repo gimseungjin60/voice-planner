@@ -21,6 +21,7 @@
       <div class="wb-dayhead<%= d.isToday ? ' today' : '' %><%= d.dow === 0 || d.dow === 6 ? ' weekend' : '' %>">
         <span class="dow"><%= d.label %></span>
         <b class="num"><%= d.date %></b>
+        <% if (d.note && d.note.kind !== 'break') { %><span class="wb-dnote <%= d.note.kind %>"><%= d.note.label %></span><% } %>
       </div>
     <% }) %>
   </div>
@@ -66,6 +67,7 @@
     <li class="wb-aday<%= d.isToday ? ' today' : '' %>">
       <div class="wb-adate">
         <b class="num"><%= d.date %></b><span><%= d.label %></span>
+        <% if (d.note && d.note.kind !== 'break') { %><span class="wb-dnote <%= d.note.kind %>"><%= d.note.label %></span><% } %>
       </div>
       <% if (!list.length) { %>
         <p class="wb-free">비어 있어요</p>

@@ -5,6 +5,8 @@ const express = require("express");
 const pool = require("../../db");
 const ai = require("../../services/ai");
 const { requireLogin } = require("../../middleware/auth");
+const academic = require("../../config/academic");
+const notionSync = require("../../services/notion-sync");
 const { toDatetime, ownSubjectId, TASK_SELECT } = require("./tasks");
 const { createEvent } = require("./events");
 
@@ -41,7 +43,8 @@ const normTime = (t) => {
 
 // 그날 바쁜 시간 (수업 + 일정), 분 단위 [start, end, 이름]
 async function busyOn(userId, date) {
-  const [classes] = await pool.query(
+  // 방학·공휴일에는 시간표 수업이 없다 (config/academic.js)
+  const [classes] = !academic.classOn(date) ? [[]] : await pool.query(
     `SELECT s.name, sc.start_time, sc.end_time FROM schedules sc JOIN subjects s ON s.subject_id = sc.subject_id
      WHERE s.user_id = ? AND sc.day_of_week = ? ORDER BY sc.start_time`,
     [userId, dayOf(date)],
@@ -227,6 +230,7 @@ async function runTool(req, name, input) {
       if (dup) {
         if (dueAt && dueAt !== dup.due_at) {
           await pool.query("UPDATE tasks SET due_at = ? WHERE task_id = ? AND user_id = ?", [dueAt, dup.task_id, userId]);
+          notionSync.push(userId, dup.task_id);
           return { ok: true, task_id: dup.task_id, due_at: dueAt, updated: true, label: `마감 변경 · ${title}` };
         }
         return { ok: true, task_id: dup.task_id, already: true, label: `이미 있는 할 일 · ${title}` };
@@ -249,6 +253,7 @@ async function runTool(req, name, input) {
         "UPDATE tasks SET status = 'done', completed_at = ? WHERE task_id = ? AND user_id = ?",
         [pool.kst(), t.task_id, userId],
       );
+      notionSync.push(userId, t.task_id);
       return { ok: true, label: `완료 · ${t.title}` };
     }
     case "add_event":

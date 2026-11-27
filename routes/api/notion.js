@@ -1,8 +1,10 @@
 // /api/notion/export  이번 주(오늘~7일, 대시보드 '이번 주'와 같은 기준) 또는 고른 할 일을 노션 DB에 행으로 추가
-// 내보낸 할 일은 tasks.external_id에 노션 페이지 ID를 남겨 다시 내보내지 않는다
+// 내보낸 할 일은 tasks.external_id에 노션 페이지 ID를 남겨 다시 내보내지 않는다. 그 뒤로는 양방향 동기화(services/notion-sync.js)로 맞춘다
+// /api/notion/sync    노션에서 바뀐 것 가져오기 (대시보드 자동 동기화·연동 설정 '지금 동기화')
 const express = require("express");
 const pool = require("../../db");
 const notion = require("../../services/notion");
+const notionSync = require("../../services/notion-sync");
 const { requireLogin } = require("../../middleware/auth");
 const { TASK_SELECT } = require("./tasks");
 
@@ -35,6 +37,16 @@ router.post("/export", async (req, res, next) => {
     }
     await pool.query("UPDATE integrations SET last_synced_at = ? WHERE user_id = ? AND provider = 'notion'", [pool.kst(), userId]);
     res.json({ ok: true, data: { exported: done.length, failed: tasks.length - done.length } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/sync", async (req, res, next) => {
+  try {
+    const result = await notionSync.pull(req.session.user.user_id);
+    if (!result) return res.status(400).json({ ok: false, error: "노션이 연결되어 있지 않아요" });
+    res.json({ ok: true, data: result });
   } catch (err) {
     next(err);
   }

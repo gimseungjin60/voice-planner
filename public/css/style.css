@@ -4327,6 +4327,18 @@ body.page-admin {
   .timeline > li > :last-child:not(:empty) {
     grid-column: 2;
   }
+  /* 마감 제목이 과목 칩과 한 줄이면 잘려서, 과목을 제목 아래로 내리고 제목은 두 줄까지 */
+  .timeline .tl-title:has(.chip) {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .timeline .tl-title .t {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    flex: 1 1 100%;
+    white-space: normal;
+  }
   /* 시간표: 칸이 너무 좁아지지 않게 표만 가로 스크롤 */
   .tt-wrap {
     overflow-x: auto;
@@ -5812,4 +5824,41 @@ a.wb-block:hover {
   .cal-layers { order: 3; width: 100%; margin-left: 0; }
   .cal-dots i.cls { background: #fff; border: 1.5px solid var(--c); width: 6px; height: 6px; box-sizing: border-box; }
   .cal-dots i.ev { background: #1a73e8; border-radius: 2px; }
+}
+
+/* 학사일정 표시 (config/academic.js): 공휴일은 빨간 글씨, 종강·시험 기간은 회색 작은 글씨 */
+.wb-dnote,
+.cal-note {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.wb-dnote.holiday,
+.cal-note.holiday,
+.wb-adate .wb-dnote.holiday {
+  color: var(--red-text);
+}
+.wb-adate .wb-dnote {
+  font-size: 11px;
+  text-align: center;
+}
+.cal-note {
+  min-width: 0;
+  margin: 0 auto 0 4px;
+}
+.cal-day.holiday .num {
+  color: var(--red);
+}
+@media (max-width: 760px) {
+  .cal-note {
+    display: none;
+  }
+}
+.tl-day .tl-note.holiday {
+  color: var(--red-text);
 }

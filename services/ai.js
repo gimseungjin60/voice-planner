@@ -225,14 +225,14 @@ JSON만 출력: {"top":[{"task_id":1,"reason":"..."}]}`;
 }
 
 // 4. 아침 브리핑 → 30초 분량 TTS용 문장
-async function makeBriefing({ userId, userName, today, now, classes, dueTasks }) {
+async function makeBriefing({ userId, userName, today, now, classes, dueTasks, dayNote = null }) {
   const input = `이름: ${userName}
-오늘: ${today}
+오늘: ${today}${dayNote ? `\n학사일정: ${dayNote}` : ""}
 오늘 수업: ${classes.map((c) => `${c.name} ${c.start_time.slice(0, 5)} ${c.room || ""}`).join(", ") || "없음"}
 지금 시각: ${now || today}
 다가오는 마감: ${dueTasks.map((t) => `${t.title}(${t.due_at}${now && t.due_at < now ? ", 이미 지남" : ""})`).join(", ") || "없음"}`;
   const system = `너는 다정한 하루 브리핑 비서다. 주어진 정보로 소리 내어 읽을 30초 분량(3~5문장) 한국어 브리핑을 쓴다.
-인사는 지금 시각에 맞춘다(아침·오후·저녁). 이미 끝난 수업은 말하지 않는다. "이미 지남"인 마감은 다가오는 마감과 섞지 말고 "지난 마감"으로 따로 짧게 말한다.
+인사는 지금 시각에 맞춘다(아침·오후·저녁). 이미 끝난 수업은 말하지 않는다. 학사일정(공휴일·방학·시험 기간)이 있으면 한마디 곁들인다. "이미 지남"인 마감은 다가오는 마감과 섞지 말고 "지난 마감"으로 따로 짧게 말한다.
 이모지·마크다운·괄호 없이 말하듯이. 시간은 "오전 10시"처럼 읽기 쉽게. 마지막에 짧은 응원 한마디.`;
   return call({ feature: "briefing", userId, system, input, json: false });
 }

@@ -68,6 +68,7 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 | GET | /api/timeline?from=&to= | 통합 타임라인: 수업(schedules)+일정(events)+할 일 마감(tasks)을 시간순 하나의 배열로 | O |
 | POST | /api/assistant | 음성 비서. body { text } → Claude tool use로 도구 실행 → { reply(TTS용 문장), actions[], pending } | O |
 | POST | /api/notion/export | 이번 주(또는 선택한) 할 일을 노션 DB에 행으로 추가, tasks.external_id 기록 | O |
+| POST | /api/notion/sync | 노션에서 고친 페이지를 할 일에 반영, 새 페이지(오늘 이후)는 할 일로 추가, 휴지통 페이지 정리 | O |
 | GET | /api/share | 내 공유 링크 상태 (꺼져 있으면 null). { url, visibility, view_count, last_viewed_at } | O |
 | POST | /api/share | 공유 켜기 (랜덤 토큰 생성, 기본 visibility=busy) | O |
 | PATCH | /api/share | 공개 범위 바꾸기 { visibility: busy·title·all } | O |
@@ -93,9 +94,11 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 5. 할 일 보드: 할 일 · 진행 중 · 완료 3열 카드, 과목 색상 표시, 마감 임박 빨간 표시
    - 월간 달력 보기 (2026-11-27 추가): 할 일 마감 + 수업(시간표) + 구글 캘린더 일정을 한 달 칸에 시간순으로. 할 일·수업·구글 일정 켜고 끄기. 수업·일정은 보기만 (/api/timeline)
 6. 시간표: 주간 표, 과목 추가/수정
+   - 학사일정 (2026-11-27 추가): 시간표 수업은 학기(개강~종강) 안이면서 공휴일이 아닌 날에만 펼친다. 기준은 인하공전 2026학년도 학사일정(`config/academic.js`). 달력·주 보드·대시보드에 공휴일·종강·종합평가 기간을 작게 표시하고, 브리핑은 공휴일·방학이면 그 이유를 말한다
 7. 관리자: 회원 목록·삭제, 통계 카드 (email role이 admin일 때만 메뉴 노출)
 8. 받은 편지함: Gmail 후보 카드 (보낸 사람, 제목, AI 요약(한 줄 요약/할 일/마감/제출·준비), AI가 찾은 할 일·마감, 과목) + [할 일로] [무시]
 9. 연동 설정: 구글 연결/재연결/해제, 노션 토큰·DB ID 입력, 마지막 동기화 시각
+   - 노션 양방향 동기화 (2026-11-27 추가, `services/notion-sync.js`): 노션과 연결된 할 일(external_id)을 앱에서 고치면(제목·마감·과목·우선순위·완료) 그 페이지도 바로 고치고, 지우면 노션 휴지통으로 보낸다. 노션에서 고친 것은 대시보드 자동 동기화·'지금 동기화'·'노션에서 가져오기' 때 가져온다. 완료는 노션 DB에 상태(status) 속성이나 이름이 '완료'인 체크박스가 있을 때만 주고받는다
 10. 음성 비서 (모든 화면 공통): 오른쪽 아래 플로팅 마이크 → 말하면 자막 → 실행 결과 토스트 + TTS 답변
 11. 일정 공유 (/share, 프로필 메뉴·시간표 화면에서 진입. 2026-11-27 추가)
    - 한 주(월~일) 보드 한 장: 수업(과목색)·일정(검정)·마감(깃발 칩, 맨 위 줄)·하루 종일 일정. 겹치면 옆으로 나눠 배치. 주 이동, 오늘 표시
@@ -173,7 +176,7 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 # 2차 목표 (나중에)
 Spring Boot + Spring AI로 MCP 서버를 만들어 같은 DB에 연결.
 도구: get_today_tasks, add_task, get_timetable, summarize_week (1차 음성 비서 도구와 같은 이름·입출력으로 맞춤).
-Claude Desktop에서 "이번 주 마감 정리해줘"가 되는 것이 목표. 노션 양방향 동기화, 다국어 강의 노트도 2차 후보.
+Claude Desktop에서 "이번 주 마감 정리해줘"가 되는 것이 목표. 다국어 강의 노트도 2차 후보. (노션 양방향 동기화는 1차로 옮김. 2026-11-27 결정)
 
 ## 비전 후보 (2026-11-26 결정, 지금은 구현하지 않음)
 - **메일 근거 문장**: 받은 편지함 할 일 후보 아래에 AI가 근거로 삼은 메일 원문 한 줄(예: "리포트는 12월 3일 23:59까지 LMS에 올려 주세요")을 함께 보여줘, 메일을 열지 않고 마감을 확인. `inbox_items.snippet` 컬럼 추가가 필요하므로 스키마 변경과 함께 진행.

@@ -3,6 +3,7 @@ const express = require("express");
 const pool = require("../../db");
 const ai = require("../../services/ai");
 const { requireLogin } = require("../../middleware/auth");
+const notionSync = require("../../services/notion-sync");
 const { ownSubjectId, toDatetime } = require("./tasks");
 
 const router = express.Router();
@@ -211,6 +212,7 @@ router.post("/:id/confirm", async (req, res, next) => {
       saved++;
     }
     await conn.commit();
+    notionSync.push(userId, rows.filter((x) => x.taskId).map((x) => x.taskId)); // 고친 할 일 중 노션과 연결된 것만 노션에도
     res.status(201).json({ ok: true, data: { saved, updated } });
   } catch (err) {
     await conn.rollback().catch(() => {});

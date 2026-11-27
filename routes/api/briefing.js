@@ -3,12 +3,14 @@ const express = require("express");
 const pool = require("../../db");
 const ai = require("../../services/ai");
 const { requireLogin } = require("../../middleware/auth");
+const academic = require("../../config/academic");
 
 const router = express.Router();
 router.use(requireLogin);
 
-// 오늘(한국 시간) 요일의 내 수업. 대시보드에서도 재사용
+// 오늘(한국 시간) 요일의 내 수업. 대시보드에서도 재사용. 방학·공휴일이면 빈 배열 (config/academic.js)
 async function todayClasses(userId) {
+  if (!academic.classOn(pool.kst().slice(0, 10))) return [];
   const [rows] = await pool.query(
     `SELECT s.subject_id, s.name, s.color, sc.start_time, sc.end_time, sc.room
      FROM schedules sc JOIN subjects s ON s.subject_id = sc.subject_id
@@ -18,11 +20,18 @@ async function todayClasses(userId) {
   return rows;
 }
 
+// 마지막 글자에 받침이 있나 ('추석이라' / '추석 연휴라')
+const hasBatchim = (w) => {
+  const c = w.charCodeAt(w.length - 1) - 0xac00;
+  return c >= 0 && c <= 11171 && c % 28 !== 0;
+};
+
 // AI 실패 시 쓰는 기본 문장 (저장하지 않아 다음에 다시 AI를 시도한다)
 function fallbackText(name, classes, dueTasks, now = pool.kst()) {
   const h = Number(now.slice(11, 13));
   const hello = h < 12 ? "좋은 아침이에요" : h < 18 ? "좋은 오후예요" : "오늘 하루 수고했어요";
-  const c = classes.length ? `오늘 수업은 ${classes.map((x) => `${x.name} ${x.start_time.slice(0, 5)}`).join(", ")}입니다.` : "오늘은 수업이 없어요.";
+  const why = academic.noClassReason(now.slice(0, 10));
+  const c = classes.length ? `오늘 수업은 ${classes.map((x) => `${x.name} ${x.start_time.slice(0, 5)}`).join(", ")}입니다.` : why ? `오늘은 ${why}${hasBatchim(why) ? "이라" : "라"} 수업이 없어요.` : "오늘은 수업이 없어요.";
   const upcoming = dueTasks.filter((t) => t.due_at >= now);
   const d2 = upcoming.length ? `다가오는 마감은 ${upcoming.map((t) => t.title).join(", ")}입니다.` : "급한 마감은 없어요.";
   return `${name}님, ${hello}. ${c} ${d2} 오늘도 힘내세요!`;
@@ -43,7 +52,7 @@ router.get("/today", async (req, res, next) => {
       [userId, threeDays],
     );
     const now = pool.kst();
-    const content = await ai.makeBriefing({ userId, userName, today, now: now.slice(0, 16), classes, dueTasks });
+    const content = await ai.makeBriefing({ userId, userName, today, now: now.slice(0, 16), classes, dueTasks, dayNote: academic.dayNote(today)?.label });
     if (!content) return res.json({ ok: true, data: { content: fallbackText(userName, classes, dueTasks, now), ai_ok: false } });
     // 동시에 두 번 요청돼도 하루 1개 (uq_user_date)
     await pool.query("INSERT IGNORE INTO briefings (user_id, brief_date, content) VALUES (?, ?, ?)", [userId, today, content]);

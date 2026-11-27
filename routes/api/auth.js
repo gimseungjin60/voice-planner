@@ -41,13 +41,28 @@ router.post("/signup", async (req, res, next) => {
   }
 });
 
+// 비밀번호 맞히기 막기: 같은 이메일로 5번 틀리면 1분 동안 로그인 잠금 (메모리, 서버 재시작 시 초기화)
+const MAX_FAILS = 5;
+const LOCK_MS = 60 * 1000;
+const fails = new Map(); // email → { count, until }
+
 router.post("/login", async (req, res, next) => {
   try {
     const email = String(req.body?.email || "").trim().toLowerCase();
     const password = String(req.body?.password || "");
+    const f = fails.get(email);
+    if (f?.until > Date.now()) {
+      const sec = Math.ceil((f.until - Date.now()) / 1000);
+      return res.status(429).json({ ok: false, error: `로그인을 ${MAX_FAILS}번 틀렸어요. ${sec}초 뒤에 다시 시도해 주세요` });
+    }
     const [[user]] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
-    if (!user || !(await bcrypt.compare(password, user.password_hash)))
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      const count = (f && !f.until ? f.count : 0) + 1;
+      fails.set(email, count >= MAX_FAILS ? { count, until: Date.now() + LOCK_MS } : { count });
+      if (fails.size > 10000) fails.clear(); // 메모리 보호
       return res.status(401).json({ ok: false, error: "이메일 또는 비밀번호가 틀렸어요" });
+    }
+    fails.delete(email);
     res.json({ ok: true, data: await startSession(req, user) });
   } catch (err) {
     next(err);

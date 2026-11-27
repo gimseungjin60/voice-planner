@@ -32,11 +32,11 @@ routes/
   api/events.js        # /api/events 일정
   api/timeline.js      # /api/timeline 수업+일정+마감 통합
   api/assistant.js     # /api/assistant 음성 비서
-  api/notion.js        # /api/notion/export
+  api/notion.js        # /api/notion/export, /api/notion/sync
   api/share.js         # /api/share 일정 공유 링크 + 주간 보드 데이터 (친구 화면 /s/:token은 pages.js)
 services/ai.js         # Claude 호출은 전부 여기. 라우터에서 SDK 직접 호출 금지
 services/google.js     # 구글 캘린더·Gmail 호출은 전부 여기 (토큰 갱신 포함)
-services/notion.js     # 노션 호출은 전부 여기
+services/notion.js     # 노션 호출은 전부 여기 (services/notion-sync.js = 노션 양방향 동기화, DB와 묶기)
 middleware/auth.js     # requireLogin, requireAdmin
 views/                 # *.ejs, views/partials/{header,footer,nav}.ejs
 public/css, public/js  # public/js/voice.js = STT/TTS 래퍼
@@ -73,5 +73,5 @@ public/css, public/js  # public/js/voice.js = STT/TTS 래퍼
 - 명세에 없는 기능을 임의로 추가 (먼저 제안할 것)
 
 ## 2차 목표 (지금은 손대지 말 것)
-Spring Boot(Spring AI) MCP 서버가 같은 MySQL DB를 읽어 Claude Desktop에서 플래너를 조작. 노션 양방향 동기화·다국어 강의 노트도 2차 후보. 그래서 DB 스키마는 Node 전용 꼼수 없이 표준 SQL로 유지.
-(구글 캘린더·Gmail·노션 내보내기 연동은 1차 범위로 옮김. 2026-11-22 결정)
+Spring Boot(Spring AI) MCP 서버가 같은 MySQL DB를 읽어 Claude Desktop에서 플래너를 조작. 다국어 강의 노트도 2차 후보. 그래서 DB 스키마는 Node 전용 꼼수 없이 표준 SQL로 유지.
+(구글 캘린더·Gmail·노션 내보내기 연동은 1차 범위로 옮김. 2026-11-22 결정. 노션 양방향 동기화도 1차로 옮김. 2026-11-27 결정)

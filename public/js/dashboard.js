@@ -99,13 +99,16 @@ function itemHtml(it, now, isNext) {
 
 const nowRow = (now) => `<li class="tl-now"><span>${hm(now)} 지금</span><i aria-hidden="true"></i></li>`;
 
-function renderTimeline(items) {
+// days: { 'YYYY-MM-DD': { kind, label } } 공휴일·종강·시험 기간·방학 (서버 config/academic.js)
+function renderTimeline(items, days = {}) {
   const now = kstNow();
   const today = now.slice(0, 10);
+  const todayNote = days[today];
   if (!items.length) {
+    const why = range === "today" && todayNote && ["holiday", "break"].includes(todayNote.kind) ? `${todayNote.label}${/[가-힣]$/.test(todayNote.label) && (todayNote.label.charCodeAt(todayNote.label.length - 1) - 0xac00) % 28 === 0 ? "예요" : "이에요"}. ` : "";
     $("timeline").innerHTML = `<li class="empty"><div class="empty-icon"><svg class="i"><use href="#i-calendar"/></svg></div>
       <p class="title">${range === "today" ? "오늘은 일정이 없어요" : "이번 주 일정이 없어요"}</p>
-      <p class="desc">수업도 약속도 없는 ${range === "today" ? "하루" : "한 주"}예요.</p></li>`;
+      <p class="desc">${why}수업도 약속도 없는 ${range === "today" ? "하루" : "한 주"}예요.</p></li>`;
     return;
   }
   const at = (it) => (it.kind === "task" ? it.due_at : it.start_at);
@@ -117,7 +120,8 @@ function renderTimeline(items) {
     const day = at(it).slice(0, 10);
     if (range === "week" && day !== lastDay) {
       const dow = WEEK[new Date(day + "T12:00:00Z").getUTCDay()];
-      html += `<li class="tl-day">${dow} ${md(day)}${day === today ? " · 오늘" : day === addDays(today, 1) ? " · 내일" : ""}</li>`;
+      const note = days[day] && days[day].kind !== "break" ? ` · <span class="tl-note ${days[day].kind}">${esc(days[day].label)}</span>` : "";
+      html += `<li class="tl-day">${dow} ${md(day)}${day === today ? " · 오늘" : day === addDays(today, 1) ? " · 내일" : ""}${note}</li>`;
       lastDay = day;
     }
     const next = !nowShown && day === today && at(it) > now;
@@ -146,7 +150,7 @@ async function loadTimeline() {
   const r = await api(`/api/timeline?from=${from}&to=${to}`, { quiet: true });
   if (r.ok) {
     banner(r.data.google);
-    return renderTimeline(r.data.items);
+    return renderTimeline(r.data.items, r.data.days);
   }
   // 타임라인 API가 아직 없으면 오늘 수업만이라도 보여준다
   banner("disconnected");
@@ -208,31 +212,35 @@ briefingBtn.addEventListener("click", async () => {
   setTimeout(() => briefingBtn.classList.remove("loading"), 8000);
 });
 
-// ---------- 동기화 (캘린더 + Gmail) ----------
+// ---------- 동기화 (캘린더 + Gmail + 노션 가져오기) ----------
 const syncBtn = $("sync-btn");
 async function sync({ auto = false } = {}) {
   syncBtn.classList.add("loading");
   syncBtn.querySelector("span").textContent = "동기화 중…";
-  const [cal, mail] = await Promise.all([
+  const [cal, mail, notion] = await Promise.all([
     api("/api/sync/calendar", { method: "POST", quiet: true }),
     api("/api/sync/gmail", { method: "POST", quiet: true }),
+    api("/api/notion/sync", { method: "POST", quiet: true }),
   ]);
+  const notionChanged = notion.ok && notion.data.updated + notion.data.added + notion.data.removed > 0;
   syncBtn.classList.remove("loading");
   syncBtn.querySelector("span").textContent = "동기화";
-  if (!cal.ok && !mail.ok) return auto || toast(cal.error || "구글을 연결하면 동기화할 수 있어요", { type: "fail" });
-  $("sync-note").textContent = "구글 캘린더·메일 · 방금 동기화";
-  if (!auto || mail.data?.found || mail.data?.auto_added) toast(syncMessage(cal, mail), { type: cal.ok && mail.ok && !mail.data.ai_failed ? "sync" : "fail" });
+  if (!cal.ok && !mail.ok && !notion.ok) return auto || toast(cal.error || "구글이나 노션을 연결하면 동기화할 수 있어요", { type: "fail" });
+  $("sync-note").textContent = `${cal.ok || mail.ok ? "구글 캘린더·메일" : ""}${(cal.ok || mail.ok) && notion.ok ? "·" : ""}${notion.ok ? "노션" : ""} · 방금 동기화`;
+  const googleOk = (!cal.ok && !mail.ok) || (cal.ok && mail.ok && !mail.data.ai_failed);
+  if (!auto || mail.data?.found || mail.data?.auto_added || notionChanged) toast(syncMessage(cal, mail, notion), { type: googleOk ? "sync" : "fail" });
   loadTimeline();
   loadInbox();
+  if (notionChanged) loadSummary();
 }
 syncBtn.addEventListener("click", () => sync());
 
 // 대시보드에 들어왔을 때 마지막 동기화가 10분 넘게 지났으면 자동 1회 (@Dev.md logic 9)
+// 구글이나 노션 중 하나라도 연결돼 있으면 (노션 양방향 동기화 2026-11-27 추가)
 api("/api/integrations", { quiet: true }).then((r) => {
-  const g = r.ok && r.data.google;
-  if (!g || !g.connected || g.expired) return;
-  const last = g.last_synced_at ? Date.parse(g.last_synced_at.replace(" ", "T") + "+09:00") : 0;
-  if (Date.now() - last > 10 * 60 * 1000) sync({ auto: true });
+  if (!r.ok) return;
+  const stale = (x) => x?.connected && !x.expired && Date.now() - (x.last_synced_at ? Date.parse(x.last_synced_at.replace(" ", "T") + "+09:00") : 0) > 10 * 60 * 1000;
+  if (stale(r.data.google) || stale(r.data.notion)) sync({ auto: true });
 });
 
 // 음성 비서가 일정·할 일을 바꾸면 바로 반영

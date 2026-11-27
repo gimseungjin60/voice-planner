@@ -4,6 +4,7 @@ const express = require("express");
 const pool = require("../../db");
 const { requireLogin } = require("../../middleware/auth");
 const { TASK_SELECT } = require("./tasks");
+const academic = require("../../config/academic");
 
 const router = express.Router();
 router.use(requireLogin);
@@ -26,14 +27,18 @@ router.get("/", async (req, res, next) => {
     // 월간 달력 한 장(6주 = 42일)까지
     if (Date.parse(to) - Date.parse(from) > 41 * 86400000) return res.status(400).json({ ok: false, error: "한 번에 42일까지만 볼 수 있어요" });
 
-    // 수업: 요일별 시간표를 날짜마다 펼친다
+    // 수업: 요일별 시간표를 날짜마다 펼친다. 학기 밖(방학)·공휴일은 건너뛴다 (config/academic.js)
     const [classes] = await pool.query(
       `SELECT s.subject_id, s.name, s.color, sc.day_of_week, sc.start_time, sc.end_time, sc.room
        FROM schedules sc JOIN subjects s ON s.subject_id = sc.subject_id WHERE s.user_id = ?`,
       [userId],
     );
     const items = [];
+    const days = {}; // 날짜별 학사 표시 (공휴일·종강·시험 기간·방학)
     for (let d = from; d <= to; d = addDays(d, 1)) {
+      const note = academic.dayNote(d);
+      if (note) days[d] = note;
+      if (!academic.classOn(d)) continue;
       const dow = new Date(d + "T12:00:00Z").getUTCDay();
       classes
         .filter((c) => c.day_of_week === dow)
@@ -54,7 +59,7 @@ router.get("/", async (req, res, next) => {
     tasks.forEach((t) => items.push({ kind: "task", ...t }));
 
     items.sort((a, b) => (a.start_at || a.due_at).localeCompare(b.start_at || b.due_at));
-    res.json({ ok: true, data: { items, google: await googleState(userId) } });
+    res.json({ ok: true, data: { items, days, google: await googleState(userId) } });
   } catch (err) {
     next(err);
   }

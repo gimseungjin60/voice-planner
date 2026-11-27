@@ -1,4 +1,4 @@
-// 연동 설정: 구글(캘린더+Gmail) 상태·연결·해제, 노션 토큰 저장·내보내기, 음성 지원 상태
+// 연동 설정: 구글(캘린더+Gmail) 상태·연결·해제, 노션 토큰 저장·내보내기·양방향 동기화, 음성 지원 상태
 const $ = (id) => document.getElementById(id);
 const SCOPE = { calendar: ["calendar", "캘린더"], gmail: ["mail", "메일 읽기"] };
 
@@ -37,12 +37,13 @@ async function load() {
 
   // 노션
   $("n-status").innerHTML = n.connected
-    ? `<span class="status-dot ok">연결됨</span><span class="num">토큰 ${esc(n.token_hint || "")}</span>`
-    : `<span class="status-dot">연결 안 됨</span>`;
+    ? `<span class="status-dot ok">연결됨</span><span class="num">토큰 ${esc(n.token_hint || "")}</span><span>마지막 동기화 ${n.last_synced_at ? ago(n.last_synced_at) : "아직 없음"}</span>`
+    : `<span class="status-dot">연결 안 됨</span><span>앱과 노션의 할 일을 서로 맞춰요</span>`;
   // 연결돼 있으면 입력 폼은 접고 [설정 바꾸기]로 연다. 처음 연결할 때만 3단계 안내 + 폼을 펼쳐 둔다
   $("notion-form").classList.toggle("collapsed", !!n.connected);
   $("n-actions").innerHTML = n.connected
     ? `<button type="button" class="btn text sm" id="n-edit" aria-expanded="false">설정 바꾸기</button>
+       <button type="button" class="btn line sm" id="n-sync"><svg class="i sm" aria-hidden="true"><use href="#i-sync"/></svg><span>노션에서 가져오기</span></button>
        <button type="button" class="btn line sm" id="n-export"><svg class="i sm" aria-hidden="true"><use href="#i-export"/></svg><span>이번 주 할 일 내보내기</span></button>`
     : "";
   $("n-edit")?.addEventListener("click", (e) => {
@@ -53,6 +54,16 @@ async function load() {
   });
   $("n-token").placeholder = n.connected ? "새 토큰으로 바꿀 때만 입력" : "ntn_ 또는 secret_으로 시작하는 토큰";
   if (n.target_ref) $("n-db").value = n.target_ref;
+  $("n-sync")?.addEventListener("click", async (e) => {
+    const b = e.currentTarget;
+    b.classList.add("loading");
+    const res = await api("/api/notion/sync", { method: "POST" });
+    b.classList.remove("loading");
+    if (!res.ok) return;
+    const { updated, added, removed } = res.data;
+    toast(updated + added + removed ? `노션에서 고친 ${updated}개 · 새로 ${added}개 · 지운 ${removed}개를 반영했어요` : "노션에서 바뀐 할 일이 없어요", { type: "sync" });
+    load();
+  });
   $("n-export")?.addEventListener("click", async (e) => {
     const b = e.currentTarget;
     b.classList.add("loading");
@@ -68,10 +79,14 @@ $("g-sync-now").addEventListener("click", async (e) => {
   const b = e.currentTarget;
   b.classList.add("loading");
   b.querySelector("span").textContent = "동기화 중…";
-  const [cal, mail] = await Promise.all([api("/api/sync/calendar", { method: "POST", quiet: true }), api("/api/sync/gmail", { method: "POST", quiet: true })]);
+  const [cal, mail, notion] = await Promise.all([
+    api("/api/sync/calendar", { method: "POST", quiet: true }),
+    api("/api/sync/gmail", { method: "POST", quiet: true }),
+    api("/api/notion/sync", { method: "POST", quiet: true }),
+  ]);
   b.classList.remove("loading");
   b.querySelector("span").textContent = "지금 동기화";
-  toast(syncMessage(cal, mail), { type: cal.ok && mail.ok && !mail.data.ai_failed ? "sync" : "fail" });
+  toast(syncMessage(cal, mail, notion), { type: cal.ok && mail.ok && !mail.data.ai_failed ? "sync" : "fail" });
   load();
 });
 

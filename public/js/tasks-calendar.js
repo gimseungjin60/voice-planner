@@ -32,12 +32,14 @@ try {
 
 // 수업·구글 일정: 달(6주)마다 한 번 받아 날짜별로 보관. 실패해도 할 일은 그대로 보인다
 const agenda = new Map(); // 'YYYY-MM' → Map(day → [항목])
+const dayNotes = new Map(); // 'YYYY-MM-DD' → { kind, label } 공휴일·종강·시험 기간 (방학은 표시 안 함)
 async function loadAgenda(ym) {
   if (agenda.has(ym)) return;
   agenda.set(ym, new Map());
   const cells = monthCells(ym);
   const r = await api(`/api/timeline?from=${cells[0]}&to=${cells[41]}`, { quiet: true });
   if (!r.ok) return agenda.delete(ym);
+  for (const [d, n] of Object.entries(r.data.days || {})) if (n.kind !== "break") dayNotes.set(d, n);
   const byDay = new Map();
   for (const it of r.data.items) {
     if (it.kind === "task") continue;
@@ -119,6 +121,7 @@ function renderCalendar() {
         d < today && "past",
         dow(d) === 0 && "sun",
         dow(d) === 6 && "sat",
+        dayNotes.get(d)?.kind === "holiday" && "holiday",
       ]
         .filter(Boolean)
         .join(" ");
@@ -130,9 +133,9 @@ function renderCalendar() {
       const more = merged.length - MAX_IN_CELL;
       const classes = evs.filter((x) => x.kind === "class").length;
       const events = evs.length - classes;
-      const label = [dayLabel(d), classes && `수업 ${classes}개`, events && `일정 ${events}개`, shownTasks.length && `할 일 ${shownTasks.length}개`, open && layers.task && `남은 할 일 ${open}개`].filter(Boolean).join(", ");
+      const label = [dayLabel(d), dayNotes.get(d)?.label, classes && `수업 ${classes}개`, events && `일정 ${events}개`, shownTasks.length && `할 일 ${shownTasks.length}개`, open && layers.task && `남은 할 일 ${open}개`].filter(Boolean).join(", ");
       return `<div class="${cls}" role="gridcell" data-day="${d}" tabindex="0" aria-label="${label}">
-        <div class="cal-date"><span class="num">${Number(d.slice(8, 10))}</span>${open && layers.task ? `<span class="cal-open" title="남은 할 일">${open}</span>` : ""}</div>
+        <div class="cal-date"><span class="num">${Number(d.slice(8, 10))}</span>${dayNotes.has(d) ? `<span class="cal-note ${dayNotes.get(d).kind}" title="${esc(dayNotes.get(d).label)}">${esc(dayNotes.get(d).label)}</span>` : ""}${open && layers.task ? `<span class="cal-open" title="남은 할 일">${open}</span>` : ""}</div>
         <div class="cal-items">${merged
           .slice(0, MAX_IN_CELL)
           .map((x) => (x.kind ? evHtml(x) : itemHtml(x)))

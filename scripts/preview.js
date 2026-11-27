@@ -142,8 +142,10 @@ app.delete("/api/share", (req, res) => {
   ok(res, null);
 });
 
+const academic = require("../config/academic");
 const classesOn = (ymd) =>
   schedules
+    .filter(() => academic.classOn(ymd))
     .filter((x) => x.day_of_week === dowOf(ymd))
     .map((x) => ({ ...x, name: subj(x.subject_id).name, color: subj(x.subject_id).color }))
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
@@ -385,7 +387,9 @@ app.get("/api/timeline", async (req, res) => {
     .filter((e) => e.start_at.slice(0, 10) >= from && e.start_at.slice(0, 10) <= to && (state.google !== "disconnected" || e.provider === "manual"))
     .forEach((e) => items.push({ kind: "event", ...e }));
   tasks.filter((t) => t.due_at && t.due_at.slice(0, 10) >= from && t.due_at.slice(0, 10) <= to).forEach((t) => items.push({ kind: "task", ...taskOut(t) }));
-  ok(res, { items, google: state.google });
+  const days = {};
+  for (let d = from; d <= to; d = addDays(d, 1)) if (academic.dayNote(d)) days[d] = academic.dayNote(d);
+  ok(res, { items, days, google: state.google });
 });
 
 // ---------- API: 받은 편지함·연동·동기화 ----------
@@ -412,7 +416,7 @@ app.post("/api/inbox/:id/ignore", (req, res) => {
 app.get("/api/integrations", (req, res) =>
   ok(res, {
     google: state.google === "disconnected" ? { connected: false } : { connected: true, expired: state.google === "expired", account_email: "student.kim@gmail.com", scopes: ["calendar", "gmail"], connected_at: at(-2, "21:10"), last_synced_at: state.googleSynced },
-    notion: state.notion ? { connected: true, token_hint: "••••3f9a", target_ref: state.notionRef || "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", connected_at: at(-1, "12:00") } : { connected: false },
+    notion: state.notion ? { connected: true, token_hint: "••••3f9a", target_ref: state.notionRef || "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", connected_at: at(-1, "12:00"), last_synced_at: state.notionSynced || null } : { connected: false },
   }),
 );
 app.put("/api/integrations/notion", (req, res) => {
@@ -437,6 +441,12 @@ app.post("/api/sync/gmail", async (req, res) => {
   if (state.google !== "connected") return fail(res, 400, "구글 계정을 먼저 연결하세요");
   state.googleSynced = kst();
   ok(res, { found: 0 });
+});
+app.post("/api/notion/sync", async (req, res) => {
+  await sleep(700);
+  if (!state.notion) return fail(res, 400, "노션이 연결되어 있지 않아요");
+  state.notionSynced = kst();
+  ok(res, { updated: 1, added: 0, removed: 0 });
 });
 app.post("/api/notion/export", async (req, res) => {
   await sleep(800);
