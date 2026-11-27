@@ -359,7 +359,7 @@ app.get("/api/timeline", async (req, res) => {
   const to = req.query.to || from;
   const items = [];
   for (let d = from; d <= to; d = addDays(d, 1)) {
-    classesOn(d).forEach((c) => items.push({ kind: "class", title: c.name, subject_name: c.name, subject_color: c.color, location: c.room, start_at: `${d} ${c.start_time}`, end_at: `${d} ${c.end_time}` }));
+    classesOn(d).forEach((c) => items.push({ kind: "class", title: c.name, subject_id: c.subject_id, subject_name: c.name, subject_color: c.color, location: c.room, start_at: `${d} ${c.start_time}`, end_at: `${d} ${c.end_time}` }));
   }
   // 구글 미연결이면 직접 만든 일정만
   events

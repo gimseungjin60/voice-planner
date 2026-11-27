@@ -11,12 +11,13 @@ router.use(requireLogin);
 
 const addDays = (ymd, n) => new Date(Date.parse(ymd + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
 
-// 오늘~14일 일정을 upsert하고, 같은 범위에서 구글에 더 이상 없는 구글 일정은 지운다
+// 이번 달 1일~60일 뒤 일정을 upsert하고, 같은 범위에서 구글에 더 이상 없는 구글 일정은 지운다 (할 일 월간 달력에 이번 달·다음 달이 보이도록)
 router.post("/calendar", async (req, res, next) => {
   try {
     const userId = req.session.user.user_id;
-    const from = pool.kst().slice(0, 10);
-    const to = addDays(from, 13);
+    const today = pool.kst().slice(0, 10);
+    const from = today.slice(0, 8) + "01";
+    const to = addDays(today, 60);
     const events = await google.listEvents(userId, from, to);
     const now = pool.kst();
     for (const e of events) {

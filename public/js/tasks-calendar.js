@@ -1,12 +1,13 @@
 // 할 일 월간 달력: 이번 달에 어떤 마감이 남았는지 한눈에. tasks.js의 tasks·subjectFilter·render를 같이 쓴다
 // - 날짜를 누르면 오른쪽(모바일은 아래)에 그날 할 일 목록: 완료 체크 · 마감일 바꾸기 · 원본 열기 · 그날 할 일 추가
 // - 할 일 칩을 다른 날짜로 끌어다 놓으면 마감일만 그 날로 바뀐다 (시각은 유지, 4초 동안 실행 취소)
+// - 수업(시간표)·구글 캘린더 일정도 같은 칸에 시간순으로 (보기 전용, /api/timeline). 할 일·수업·일정은 각각 켜고 끌 수 있음
 const calView = document.getElementById("cal-view");
 const calGrid = document.getElementById("cal-grid");
 const calSide = document.getElementById("cal-side");
 const calMonthInput = document.getElementById("cal-month");
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
-const MAX_IN_CELL = 3;
+const MAX_IN_CELL = 4;
 
 const kstToday = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
 const pad = (n) => String(n).padStart(2, "0");
@@ -22,6 +23,41 @@ let calSelected = kstToday(); // 오른쪽 목록에 보여줄 날짜
 
 // 과목 필터를 반영한 할 일
 const calTasks = () => tasks.filter((t) => !subjectFilter || String(t.subject_id) === subjectFilter);
+
+// 달력에 보일 것 (이 브라우저에 기억)
+let layers = { task: true, class: true, event: true };
+try {
+  layers = { ...layers, ...JSON.parse(localStorage.getItem("calLayers") || "{}") };
+} catch {}
+
+// 수업·구글 일정: 달(6주)마다 한 번 받아 날짜별로 보관. 실패해도 할 일은 그대로 보인다
+const agenda = new Map(); // 'YYYY-MM' → Map(day → [항목])
+async function loadAgenda(ym) {
+  if (agenda.has(ym)) return;
+  agenda.set(ym, new Map());
+  const cells = monthCells(ym);
+  const r = await api(`/api/timeline?from=${cells[0]}&to=${cells[41]}`, { quiet: true });
+  if (!r.ok) return agenda.delete(ym);
+  const byDay = new Map();
+  for (const it of r.data.items) {
+    if (it.kind === "task") continue;
+    // 여러 날에 걸친 일정(종일 일정 등)은 걸친 날마다
+    const last = it.end_at.slice(11) === "00:00:00" && it.end_at > it.start_at ? addDay(it.end_at.slice(0, 10), -1) : it.end_at.slice(0, 10);
+    for (let d = it.start_at.slice(0, 10); d <= last && d <= cells[41]; d = addDay(d, 1)) {
+      if (!byDay.has(d)) byDay.set(d, []);
+      // 구글 종일 일정은 00:00:00 ~ 마지막 날 23:59:59로 저장돼 있다
+      byDay.get(d).push({ ...it, allDay: it.start_at.slice(11, 16) === "00:00" && ["23:59", "00:00"].includes(it.end_at.slice(11, 16)) });
+    }
+  }
+  agenda.set(ym, byDay);
+  if (ym === calMonth) renderCalendar();
+}
+// 그날 수업·일정 (과목 필터는 수업에만, 일정은 과목이 없어 과목을 고르면 숨김)
+function agendaOf(day) {
+  const list = agenda.get(calMonth)?.get(day) || [];
+  return list.filter((x) => layers[x.kind] && (!subjectFilter || (x.kind === "class" && String(x.subject_id) === subjectFilter)));
+}
+const hm = (dt) => dt.slice(11, 16);
 
 // 6주(42칸) 달력: 그 달 1일이 있는 주의 일요일부터
 function monthCells(ym) {
@@ -39,8 +75,23 @@ function itemHtml(t) {
     ${srcLogo(t)}${time ? `<span class="cal-time">${time}</span>` : ""}<span class="cal-item-title">${esc(t.title)}</span></button>`;
 }
 
+// 구글 일정은 캘린더 로고, 직접 만든 일정은 회색 달력 아이콘
+const evLogo = (x) =>
+  x.provider === "google"
+    ? `<span class="src-logo gcal" aria-hidden="true"><svg><use href="#logo-gcal"/></svg></span>`
+    : `<svg class="i ev-ico" aria-hidden="true"><use href="#i-calendar"/></svg>`;
+// 칸 안의 수업·일정 한 줄 (누르면 그 날짜 선택)
+function evHtml(x) {
+  const time = x.allDay ? "종일" : hm(x.start_at);
+  const tip = `${x.title} · ${x.allDay ? "하루 종일" : `${hm(x.start_at)}~${hm(x.end_at)}`}${x.location ? ` · ${x.location}` : ""}`;
+  return x.kind === "class"
+    ? `<span class="cal-ev class" style="--c:${esc(x.subject_color || "#8e8e93")}" title="${esc(tip)}"><i aria-hidden="true"></i><span class="cal-time">${time}</span><span class="cal-item-title">${esc(x.title)}</span></span>`
+    : `<span class="cal-ev event" title="${esc(tip)}">${evLogo(x)}<span class="cal-time">${time}</span><span class="cal-item-title">${esc(x.title)}</span></span>`;
+}
+
 function renderCalendar() {
   if (!calView) return;
+  loadAgenda(calMonth);
   const today = kstToday();
   const [y, m] = calMonth.split("-").map(Number);
   document.getElementById("cal-title").textContent = `${y}년 ${m}월`;
@@ -71,13 +122,30 @@ function renderCalendar() {
       ]
         .filter(Boolean)
         .join(" ");
-      const more = list.length - MAX_IN_CELL;
-      return `<div class="${cls}" role="gridcell" data-day="${d}" tabindex="0" aria-label="${dayLabel(d)}, 할 일 ${list.length}개${open ? `, 남은 ${open}개` : ""}">
-        <div class="cal-date"><span class="num">${Number(d.slice(8, 10))}</span>${open ? `<span class="cal-open">${open}</span>` : ""}</div>
-        <div class="cal-items">${list.slice(0, MAX_IN_CELL).map(itemHtml).join("")}${more > 0 ? `<span class="cal-more">+${more}개</span>` : ""}</div>
-        <div class="cal-dots" aria-hidden="true">${list
-          .slice(0, 4)
-          .map((t) => `<i class="${t.status === "done" ? "done" : ""}" style="--c:${esc(t.subject_color || "#8e8e93")}"></i>`)
+      const evs = agendaOf(d);
+      const shownTasks = layers.task ? list : [];
+      // 하루를 시간순으로: 종일 일정 → 시각 있는 것 → 시각 없는 마감(23:59)
+      const keyOf = (x) => (x.kind ? (x.allDay ? "00:00a" : hm(x.start_at)) : x.due_at.slice(11, 16) + (x.status === "done" ? "z" : ""));
+      const merged = [...evs, ...shownTasks].sort((a, b) => keyOf(a).localeCompare(keyOf(b)));
+      const more = merged.length - MAX_IN_CELL;
+      const classes = evs.filter((x) => x.kind === "class").length;
+      const events = evs.length - classes;
+      const label = [dayLabel(d), classes && `수업 ${classes}개`, events && `일정 ${events}개`, shownTasks.length && `할 일 ${shownTasks.length}개`, open && layers.task && `남은 할 일 ${open}개`].filter(Boolean).join(", ");
+      return `<div class="${cls}" role="gridcell" data-day="${d}" tabindex="0" aria-label="${label}">
+        <div class="cal-date"><span class="num">${Number(d.slice(8, 10))}</span>${open && layers.task ? `<span class="cal-open" title="남은 할 일">${open}</span>` : ""}</div>
+        <div class="cal-items">${merged
+          .slice(0, MAX_IN_CELL)
+          .map((x) => (x.kind ? evHtml(x) : itemHtml(x)))
+          .join("")}${more > 0 ? `<span class="cal-more">+${more}개</span>` : ""}</div>
+        <div class="cal-dots" aria-hidden="true">${merged
+          .slice(0, 5)
+          .map((x) =>
+            x.kind === "event"
+              ? `<i class="ev"></i>`
+              : x.kind === "class"
+                ? `<i class="cls" style="--c:${esc(x.subject_color || "#8e8e93")}"></i>`
+                : `<i class="${x.status === "done" ? "done" : ""}" style="--c:${esc(x.subject_color || "#8e8e93")}"></i>`,
+          )
           .join("")}</div>
       </div>`;
     })
@@ -118,12 +186,26 @@ function renderSide() {
     .filter((t) => t.due_at && t.due_at.slice(0, 10) === calSelected)
     .sort((a, b) => (a.status === "done") - (b.status === "done") || a.due_at.localeCompare(b.due_at));
   const noDue = calTasks().filter((t) => !t.due_at && t.status !== "done");
+  const evs = agendaOf(calSelected).sort((a, b) => (a.allDay ? "00" : hm(a.start_at)).localeCompare(b.allDay ? "00" : hm(b.start_at)));
   calSide.innerHTML = `
     <div class="cal-side-head">
       <h3>${dayLabel(calSelected)}${calSelected === kstToday() ? ' <span class="cal-badge">오늘</span>' : ""}</h3>
       <span class="muted">${list.filter((t) => t.status !== "done").length}개 남음</span>
     </div>
-    ${list.length ? `<ul class="cal-list">${list.map(sideRow).join("")}</ul>` : `<p class="cal-empty">이 날은 마감이 없어요</p>`}
+    ${
+      evs.length
+        ? `<ul class="cal-agenda" aria-label="수업·일정">${evs
+            .map(
+              (x) => `<li class="${x.kind}" style="--c:${esc(x.subject_color || "#1a73e8")}">
+            <span class="cal-agenda-time num">${x.allDay ? "하루 종일" : `${hm(x.start_at)}<br>${hm(x.end_at)}`}</span>
+            <span class="cal-agenda-body"><b>${esc(x.title)}</b><span>${x.kind === "class" ? "수업" : x.provider === "google" ? `${evLogo(x)}구글 캘린더` : `${evLogo(x)}일정`}${x.location ? ` · ${esc(x.location)}` : ""}</span></span>
+          </li>`,
+            )
+            .join("")}</ul>`
+        : ""
+    }
+    ${layers.task ? "" : '<p class="cal-empty">할 일 표시를 꺼 두었어요</p>'}
+    ${!layers.task ? "" : list.length ? `<ul class="cal-list">${list.map(sideRow).join("")}</ul>` : `<p class="cal-empty">이 날은 마감이 없어요</p>`}
     <form class="cal-add" id="cal-add">
       <input name="title" maxlength="200" required placeholder="${Number(calSelected.slice(5, 7))}/${Number(calSelected.slice(8, 10))}에 할 일 추가" aria-label="이 날 할 일 추가" />
       <button class="btn sm">추가</button>
@@ -251,6 +333,23 @@ calSide.addEventListener("submit", async (e) => {
   toast(`${dayLabel(calSelected)}에 할 일을 추가했어요`);
   document.querySelector("#cal-add input")?.focus();
 });
+
+// 할 일 · 수업 · 구글 일정 켜고 끄기
+const layerBox = document.getElementById("cal-layers");
+function paintLayers() {
+  layerBox.querySelectorAll("[data-layer]").forEach((b) => b.setAttribute("aria-pressed", layers[b.dataset.layer]));
+}
+layerBox.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-layer]");
+  if (!b) return;
+  layers[b.dataset.layer] = !layers[b.dataset.layer];
+  try {
+    localStorage.setItem("calLayers", JSON.stringify(layers));
+  } catch {}
+  paintLayers();
+  renderCalendar();
+});
+paintLayers();
 
 // 보기 전환 (달력 / 보드). 고른 보기는 이 브라우저에 기억
 const boardEl = document.querySelector(".board");

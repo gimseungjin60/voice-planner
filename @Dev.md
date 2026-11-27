@@ -57,7 +57,7 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 | GET | /api/integrations | 내 연동 상태 (provider, 연결 시각, 마지막 동기화, 만료 여부). 토큰은 응답에 넣지 않음 | O |
 | PUT | /api/integrations/notion | 노션 토큰·데이터베이스 ID 저장 | O |
 | DELETE | /api/integrations/:provider | 연동 해제 (해당 provider 데이터는 유지) | O |
-| POST | /api/sync/calendar | 구글 캘린더 오늘~14일 일정을 events에 upsert. 같은 범위에서 구글 응답에 없는 provider=google 일정은 삭제 | O |
+| POST | /api/sync/calendar | 구글 캘린더 이번 달 1일~60일 뒤 일정을 events에 upsert (할 일 월간 달력용, 2026-11-27 변경). 같은 범위에서 구글 응답에 없는 provider=google 일정은 삭제 | O |
 | POST | /api/sync/gmail | 최근 7일 메일 중 새 메일만 AI 분석 → 과제·마감이 있으면 inbox_items 추가, 중요+마감 있으면 tasks 바로 추가 | O |
 | GET | /api/inbox?status=pending | 받은 편지함 후보 목록 | O |
 | POST | /api/inbox/:id/accept | 후보 → tasks 저장(source='gmail'), status=accepted | O |
@@ -91,6 +91,7 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
    - 강의 녹음은 실시간 자막 대신 녹음 파일을 10분 단위로 서버에 올려 OpenAI gpt-4o-mini-transcribe로 받아쓴다 (크롬 STT는 긴 녹음에서 끊김). 짧은 메모·음성 비서는 Web Speech 그대로
 4. 메모 목록 / 상세 (페이지네이션, 과목 필터)
 5. 할 일 보드: 할 일 · 진행 중 · 완료 3열 카드, 과목 색상 표시, 마감 임박 빨간 표시
+   - 월간 달력 보기 (2026-11-27 추가): 할 일 마감 + 수업(시간표) + 구글 캘린더 일정을 한 달 칸에 시간순으로. 할 일·수업·구글 일정 켜고 끄기. 수업·일정은 보기만 (/api/timeline)
 6. 시간표: 주간 표, 과목 추가/수정
 7. 관리자: 회원 목록·삭제, 통계 카드 (email role이 admin일 때만 메뉴 노출)
 8. 받은 편지함: Gmail 후보 카드 (보낸 사람, 제목, AI 요약(한 줄 요약/할 일/마감/제출·준비), AI가 찾은 할 일·마감, 과목) + [할 일로] [무시]

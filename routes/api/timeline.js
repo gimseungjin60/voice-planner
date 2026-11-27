@@ -23,11 +23,12 @@ router.get("/", async (req, res, next) => {
     const userId = req.session.user.user_id;
     const from = YMD.test(req.query.from || "") ? req.query.from : pool.kst().slice(0, 10);
     const to = YMD.test(req.query.to || "") && req.query.to >= from ? req.query.to : from;
-    if (Date.parse(to) - Date.parse(from) > 31 * 86400000) return res.status(400).json({ ok: false, error: "한 번에 31일까지만 볼 수 있어요" });
+    // 월간 달력 한 장(6주 = 42일)까지
+    if (Date.parse(to) - Date.parse(from) > 41 * 86400000) return res.status(400).json({ ok: false, error: "한 번에 42일까지만 볼 수 있어요" });
 
     // 수업: 요일별 시간표를 날짜마다 펼친다
     const [classes] = await pool.query(
-      `SELECT s.name, s.color, sc.day_of_week, sc.start_time, sc.end_time, sc.room
+      `SELECT s.subject_id, s.name, s.color, sc.day_of_week, sc.start_time, sc.end_time, sc.room
        FROM schedules sc JOIN subjects s ON s.subject_id = sc.subject_id WHERE s.user_id = ?`,
       [userId],
     );
@@ -37,7 +38,7 @@ router.get("/", async (req, res, next) => {
       classes
         .filter((c) => c.day_of_week === dow)
         .forEach((c) =>
-          items.push({ kind: "class", title: c.name, subject_name: c.name, subject_color: c.color, location: c.room, start_at: `${d} ${c.start_time}`, end_at: `${d} ${c.end_time}` }),
+          items.push({ kind: "class", title: c.name, subject_id: c.subject_id, subject_name: c.name, subject_color: c.color, location: c.room, start_at: `${d} ${c.start_time}`, end_at: `${d} ${c.end_time}` }),
         );
     }
     const [events] = await pool.query(
