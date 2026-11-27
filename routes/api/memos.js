@@ -205,6 +205,12 @@ router.post("/:id/confirm", async (req, res, next) => {
           continue;
         }
       }
+      // 같은 메모에서 같은 할 일을 이미 저장했으면 (확정 요청이 두 번 온 경우) 다시 만들지 않는다
+      const [[dup]] = await conn.query(
+        "SELECT 1 FROM tasks WHERE user_id = ? AND memo_id = ? AND REPLACE(LOWER(title), ' ', '') = REPLACE(LOWER(?), ' ', '') AND due_at <=> ? LIMIT 1",
+        [userId, memo.memo_id, x.title, x.dueAt],
+      );
+      if (dup) continue;
       await conn.query(
         "INSERT INTO tasks (user_id, subject_id, memo_id, title, due_at, priority, source) VALUES (?, ?, ?, ?, ?, ?, 'ai')",
         [userId, x.subjectId, memo.memo_id, x.title, x.dueAt, x.priority],
