@@ -11,6 +11,9 @@ DOMAIN="${1:-}"
 REPO="https://github.com/gimseungjin60/voice-planner.git"
 APP="$HOME/voice-planner"
 
+# Ubuntu 22.04+의 needrestart가 apt 도중 "재시작할 서비스" 창을 띄워 멈추지 않게 자동 모드로
+[ -d /etc/needrestart/conf.d ] && echo "\$nrconf{restart} = 'a';" | sudo tee /etc/needrestart/conf.d/99-auto.conf >/dev/null
+
 echo "== 1/7 패키지 설치 (nginx, mysql, git, certbot)"
 sudo apt-get update -y
 sudo apt-get install -y nginx mysql-server git curl openssl certbot python3-certbot-nginx
