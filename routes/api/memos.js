@@ -74,7 +74,13 @@ router.post("/", async (req, res, next) => {
     const names = subjects.map((s) => s.name);
     const idOf = (name) => subjects.find((s) => s.name === name)?.subject_id || null;
 
-    const input = { userId, memoId, transcript, subjects: names, today: pool.kst().slice(0, 10) };
+    // 시간표: 시각 없는 시험·퀴즈를 그 과목 수업 시작 시각으로 맞추는 데 쓴다
+    const [timetable] = await pool.query(
+      "SELECT s.name, sc.day_of_week, sc.start_time FROM schedules sc JOIN subjects s ON s.subject_id = sc.subject_id WHERE s.user_id = ? ORDER BY sc.day_of_week, sc.start_time",
+      [userId],
+    );
+    const now = pool.kst();
+    const input = { userId, memoId, transcript, subjects: names, today: now.slice(0, 10), now: now.slice(0, 16), timetable };
     const result = memoType === "lecture" ? await ai.summarizeLecture(input) : await ai.extractTasks(input);
     if (result) {
       await pool.query("UPDATE voice_memos SET summary = ?, subject_id = ? WHERE memo_id = ? AND user_id = ?", [
