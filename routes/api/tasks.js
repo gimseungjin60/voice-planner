@@ -3,6 +3,7 @@ const express = require("express");
 const pool = require("../../db");
 const ai = require("../../services/ai");
 const { requireLogin } = require("../../middleware/auth");
+const notionSync = require("../../services/notion-sync");
 
 const router = express.Router();
 router.use(requireLogin);
@@ -198,6 +199,7 @@ router.patch("/:id", async (req, res, next) => {
     ]);
     if (!r.affectedRows) return res.status(404).json({ ok: false, error: "할 일을 찾을 수 없어요" });
     const [[task]] = await pool.query(`${TASK_SELECT} WHERE t.task_id = ?`, [req.params.id]);
+    if (task.external_id) notionSync.push(userId, task.task_id); // 노션과 연결된 할 일이면 노션에도
     res.json({ ok: true, data: task });
   } catch (err) {
     next(err);
@@ -206,11 +208,11 @@ router.patch("/:id", async (req, res, next) => {
 
 router.delete("/:id", async (req, res, next) => {
   try {
-    const [r] = await pool.query("DELETE FROM tasks WHERE task_id = ? AND user_id = ?", [
-      req.params.id,
-      req.session.user.user_id,
-    ]);
+    const userId = req.session.user.user_id;
+    const [[old]] = await pool.query("SELECT external_id FROM tasks WHERE task_id = ? AND user_id = ?", [req.params.id, userId]);
+    const [r] = await pool.query("DELETE FROM tasks WHERE task_id = ? AND user_id = ?", [req.params.id, userId]);
     if (!r.affectedRows) return res.status(404).json({ ok: false, error: "할 일을 찾을 수 없어요" });
+    if (old?.external_id) notionSync.trash(userId, old.external_id); // 노션 페이지는 휴지통으로 (30일 안에 되살릴 수 있음)
     res.json({ ok: true, data: null });
   } catch (err) {
     next(err);

@@ -3,6 +3,7 @@
 const express = require("express");
 const pool = require("../../db");
 const { requireLogin } = require("../../middleware/auth");
+const notion = require("../../services/notion");
 
 const router = express.Router();
 router.use(requireLogin);
@@ -24,7 +25,7 @@ router.get("/", async (req, res, next) => {
       ok: true,
       data: {
         google: g ? { connected: true, expired, scopes: scopeNames(g.scopes), connected_at: g.connected_at, last_synced_at: g.last_synced_at } : { connected: false },
-        notion: n ? { connected: true, token_hint: `••••${n.access_token.slice(-4)}`, target_ref: n.target_ref, connected_at: n.connected_at } : { connected: false },
+        notion: n ? { connected: true, token_hint: `••••${n.access_token.slice(-4)}`, target_ref: n.target_ref, connected_at: n.connected_at, last_synced_at: n.last_synced_at } : { connected: false },
       },
     });
   } catch (err) {
@@ -50,6 +51,7 @@ router.put("/notion", async (req, res, next) => {
       const [r] = await pool.query("UPDATE integrations SET target_ref = ? WHERE user_id = ? AND provider = 'notion'", [ref, userId]);
       if (!r.affectedRows) return res.status(400).json({ ok: false, error: "노션 토큰을 입력하세요" });
     }
+    notion.forget(ref); // 속성 이름을 새로 찾게
     res.json({ ok: true, data: null });
   } catch (err) {
     next(err);

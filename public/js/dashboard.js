@@ -212,31 +212,35 @@ briefingBtn.addEventListener("click", async () => {
   setTimeout(() => briefingBtn.classList.remove("loading"), 8000);
 });
 
-// ---------- 동기화 (캘린더 + Gmail) ----------
+// ---------- 동기화 (캘린더 + Gmail + 노션 가져오기) ----------
 const syncBtn = $("sync-btn");
 async function sync({ auto = false } = {}) {
   syncBtn.classList.add("loading");
   syncBtn.querySelector("span").textContent = "동기화 중…";
-  const [cal, mail] = await Promise.all([
+  const [cal, mail, notion] = await Promise.all([
     api("/api/sync/calendar", { method: "POST", quiet: true }),
     api("/api/sync/gmail", { method: "POST", quiet: true }),
+    api("/api/notion/sync", { method: "POST", quiet: true }),
   ]);
+  const notionChanged = notion.ok && notion.data.updated + notion.data.added + notion.data.removed > 0;
   syncBtn.classList.remove("loading");
   syncBtn.querySelector("span").textContent = "동기화";
-  if (!cal.ok && !mail.ok) return auto || toast(cal.error || "구글을 연결하면 동기화할 수 있어요", { type: "fail" });
-  $("sync-note").textContent = "구글 캘린더·메일 · 방금 동기화";
-  if (!auto || mail.data?.found || mail.data?.auto_added) toast(syncMessage(cal, mail), { type: cal.ok && mail.ok && !mail.data.ai_failed ? "sync" : "fail" });
+  if (!cal.ok && !mail.ok && !notion.ok) return auto || toast(cal.error || "구글이나 노션을 연결하면 동기화할 수 있어요", { type: "fail" });
+  $("sync-note").textContent = `${cal.ok || mail.ok ? "구글 캘린더·메일" : ""}${(cal.ok || mail.ok) && notion.ok ? "·" : ""}${notion.ok ? "노션" : ""} · 방금 동기화`;
+  const googleOk = (!cal.ok && !mail.ok) || (cal.ok && mail.ok && !mail.data.ai_failed);
+  if (!auto || mail.data?.found || mail.data?.auto_added || notionChanged) toast(syncMessage(cal, mail, notion), { type: googleOk ? "sync" : "fail" });
   loadTimeline();
   loadInbox();
+  if (notionChanged) loadSummary();
 }
 syncBtn.addEventListener("click", () => sync());
 
 // 대시보드에 들어왔을 때 마지막 동기화가 10분 넘게 지났으면 자동 1회 (@Dev.md logic 9)
+// 구글이나 노션 중 하나라도 연결돼 있으면 (노션 양방향 동기화 2026-11-27 추가)
 api("/api/integrations", { quiet: true }).then((r) => {
-  const g = r.ok && r.data.google;
-  if (!g || !g.connected || g.expired) return;
-  const last = g.last_synced_at ? Date.parse(g.last_synced_at.replace(" ", "T") + "+09:00") : 0;
-  if (Date.now() - last > 10 * 60 * 1000) sync({ auto: true });
+  if (!r.ok) return;
+  const stale = (x) => x?.connected && !x.expired && Date.now() - (x.last_synced_at ? Date.parse(x.last_synced_at.replace(" ", "T") + "+09:00") : 0) > 10 * 60 * 1000;
+  if (stale(r.data.google) || stale(r.data.notion)) sync({ auto: true });
 });
 
 // 음성 비서가 일정·할 일을 바꾸면 바로 반영

@@ -416,7 +416,7 @@ app.post("/api/inbox/:id/ignore", (req, res) => {
 app.get("/api/integrations", (req, res) =>
   ok(res, {
     google: state.google === "disconnected" ? { connected: false } : { connected: true, expired: state.google === "expired", account_email: "student.kim@gmail.com", scopes: ["calendar", "gmail"], connected_at: at(-2, "21:10"), last_synced_at: state.googleSynced },
-    notion: state.notion ? { connected: true, token_hint: "••••3f9a", target_ref: state.notionRef || "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", connected_at: at(-1, "12:00") } : { connected: false },
+    notion: state.notion ? { connected: true, token_hint: "••••3f9a", target_ref: state.notionRef || "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", connected_at: at(-1, "12:00"), last_synced_at: state.notionSynced || null } : { connected: false },
   }),
 );
 app.put("/api/integrations/notion", (req, res) => {
@@ -441,6 +441,12 @@ app.post("/api/sync/gmail", async (req, res) => {
   if (state.google !== "connected") return fail(res, 400, "구글 계정을 먼저 연결하세요");
   state.googleSynced = kst();
   ok(res, { found: 0 });
+});
+app.post("/api/notion/sync", async (req, res) => {
+  await sleep(700);
+  if (!state.notion) return fail(res, 400, "노션이 연결되어 있지 않아요");
+  state.notionSynced = kst();
+  ok(res, { updated: 1, added: 0, removed: 0 });
 });
 app.post("/api/notion/export", async (req, res) => {
   await sleep(800);

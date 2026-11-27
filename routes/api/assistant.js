@@ -6,6 +6,7 @@ const pool = require("../../db");
 const ai = require("../../services/ai");
 const { requireLogin } = require("../../middleware/auth");
 const academic = require("../../config/academic");
+const notionSync = require("../../services/notion-sync");
 const { toDatetime, ownSubjectId, TASK_SELECT } = require("./tasks");
 const { createEvent } = require("./events");
 
@@ -229,6 +230,7 @@ async function runTool(req, name, input) {
       if (dup) {
         if (dueAt && dueAt !== dup.due_at) {
           await pool.query("UPDATE tasks SET due_at = ? WHERE task_id = ? AND user_id = ?", [dueAt, dup.task_id, userId]);
+          notionSync.push(userId, dup.task_id);
           return { ok: true, task_id: dup.task_id, due_at: dueAt, updated: true, label: `마감 변경 · ${title}` };
         }
         return { ok: true, task_id: dup.task_id, already: true, label: `이미 있는 할 일 · ${title}` };
@@ -251,6 +253,7 @@ async function runTool(req, name, input) {
         "UPDATE tasks SET status = 'done', completed_at = ? WHERE task_id = ? AND user_id = ?",
         [pool.kst(), t.task_id, userId],
       );
+      notionSync.push(userId, t.task_id);
       return { ok: true, label: `완료 · ${t.title}` };
     }
     case "add_event":
