@@ -9,44 +9,65 @@
    const fri = new Date(mon.getTime() + 4 * 86400000);
    const mdOf = (t) => `${t.getUTCMonth() + 1}/${t.getUTCDate()}`; %>
 
-<main class="container">
+<main class="container dash">
   <div class="dash-top">
-    <section class="today" aria-labelledby="hero-date">
+    <section class="today hero-card" aria-labelledby="hero-date">
       <p class="greet"><%= user.user_name %>님, <%= greet %></p>
-      <h1 id="hero-date"><%= m %>월 <%= d %>일 <%= dow %>요일</h1>
-      <p class="lead" id="hero-lead">오늘 수업 <b><%= classes.length %>개</b><span id="hero-due"></span></p>
+      <h1 id="hero-date"><%= m %>월 <%= d %>일 <span class="dow"><%= dow %>요일</span></h1>
+      <p class="lead" id="hero-lead"><span class="pill-stat"><svg class="i" aria-hidden="true"><use href="#i-book"/></svg>오늘 수업 <b><%= classes.length %>개</b></span><span id="hero-due"></span></p>
       <div class="today-actions">
-        <button class="btn line" id="briefing-btn"><svg class="i" aria-hidden="true"><use href="#i-speaker"/></svg><span>브리핑 듣기</span></button>
-        <button class="btn text sync" id="sync-btn" title="구글 캘린더·메일 동기화"><svg class="i sm" aria-hidden="true"><use href="#i-sync"/></svg><span>동기화</span></button>
-        <span class="fine" id="sync-note">구글 캘린더·메일</span>
+        <button class="btn" id="briefing-btn"><svg class="i" aria-hidden="true"><use href="#i-speaker"/></svg><span>브리핑 듣기</span></button>
+        <button class="btn line sync" id="sync-btn" title="구글·노션·LMS 동기화"><svg class="i sm" aria-hidden="true"><use href="#i-sync"/></svg><span>동기화</span></button>
+        <span class="fine" id="sync-note"></span>
       </div>
       <p class="briefing hidden" id="briefing-text" aria-live="polite"></p>
     </section>
-    <section class="mic-panel" aria-label="음성 메모 바로 시작">
-      <a class="mic" href="/memo?start=1" aria-label="음성 메모 시작"><svg class="i"><use href="#i-mic"/></svg></a>
-      <p class="title">눌러서 말하면 할 일로 정리돼요</p>
-      <p class="fine">“내일까지 SQL 실습 내야 해”처럼 말해 보세요</p>
+    <section class="voice-cta" aria-labelledby="voice-title">
+      <div class="voice-cta-top">
+        <span class="voice-tag"><span class="live-dot" aria-hidden="true"></span>음성으로 바로 정리</span>
+      </div>
+      <a class="voice-mic" href="/memo?start=1" aria-label="음성 메모 시작">
+        <span class="ring r1" aria-hidden="true"></span><span class="ring r2" aria-hidden="true"></span>
+        <svg class="i"><use href="#i-mic"/></svg>
+      </a>
+      <h2 class="voice-title" id="voice-title">눌러서 말하기</h2>
+      <p class="voice-desc">말하면 AI가 할 일·마감·과목으로 정리해요</p>
+      <div class="voice-examples" aria-label="이렇게 말해 보세요">
+        <a href="/memo?start=1">“내일까지 SQL 실습 내야 해”</a>
+        <a href="/memo?start=1">“금요일 3시 팀플 회의”</a>
+      </div>
     </section>
   </div>
 
-  <div class="stat-grid strip" aria-label="한눈에 보기">
-    <a class="stat" href="/tasks">
-      <span class="label">오늘 마감<svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></span>
+  <section class="connect-strip" id="connect-strip" aria-label="연결된 서비스">
+    <span class="connect-label">연결된 서비스</span>
+    <div class="connect-list" id="connect-list">
+      <span class="skel" style="width: 420px; height: 36px; border-radius: 999px"></span>
+    </div>
+  </section>
+
+  <div class="stat-grid tiles" aria-label="한눈에 보기">
+    <a class="stat" href="/tasks" style="--accent: #0071e3">
+      <span class="stat-ico" aria-hidden="true"><svg class="i"><use href="#i-clock"/></svg></span>
+      <span class="label">오늘 마감</span>
       <span class="value" id="sum-today"><span class="skel" style="width: 28px; height: 30px"></span></span>
       <span class="hint">지금 이후 남은 마감</span>
     </a>
-    <a class="stat" href="/tasks">
-      <span class="label">이번 주 마감<svg class="i" aria-hidden="true"><use href="#i-calendar"/></svg></span>
+    <a class="stat" href="/tasks" style="--accent: #8e44ec">
+      <span class="stat-ico" aria-hidden="true"><svg class="i"><use href="#i-calendar"/></svg></span>
+      <span class="label">이번 주 마감</span>
       <span class="value" id="sum-week"><span class="skel" style="width: 28px; height: 30px"></span></span>
       <span class="hint">7일 이내</span>
     </a>
-    <a class="stat" href="/tasks" id="nearest-tile">
-      <span class="label">가장 가까운 마감<svg class="i" aria-hidden="true"><use href="#i-flag"/></svg></span>
+    <a class="stat" href="/tasks" id="nearest-tile" style="--accent: #ff3b30">
+      <span class="stat-ico" aria-hidden="true"><svg class="i"><use href="#i-flag"/></svg></span>
+      <span class="label">가장 가까운 마감</span>
       <span class="value" id="sum-nearest"><span class="skel" style="width: 72px; height: 30px"></span></span>
       <span class="hint" id="sum-nearest-title">&nbsp;</span>
     </a>
-    <a class="stat" href="/inbox">
-      <span class="label">받은 편지함<svg class="i" aria-hidden="true"><use href="#i-mail"/></svg></span>
+    <a class="stat" href="/inbox" style="--accent: #1f9d4c">
+      <span class="stat-ico" aria-hidden="true"><svg class="i"><use href="#i-mail"/></svg></span>
+      <span class="label">받은 편지함</span>
       <span class="value"><span id="sum-inbox">-</span><span class="new-dot hidden" id="inbox-dot" aria-hidden="true"></span></span>
       <span class="hint">새 과제 후보</span>
     </a>
@@ -69,7 +90,7 @@
 
     <section class="card" aria-labelledby="top-title">
       <div class="card-head" style="margin-bottom: 4px">
-        <h2 id="top-title">오늘 이것부터 <span class="badge ai">AI 추천</span><span class="fine" id="top-note"></span></h2>
+        <h2 id="top-title">오늘 이것부터 <span class="badge ai"><svg class="i" aria-hidden="true"><use href="#i-sparkles"/></svg>AI 추천</span><span class="fine" id="top-note"></span></h2>
       </div>
       <ol class="top3" id="top-list"><li class="skeleton"><span class="skel" style="width: 80%"></span><span class="skel" style="width: 50%"></span></li></ol>
       <div class="card-foot"><a class="link" href="/tasks">할 일 보드에서 모두 보기<svg class="i sm" aria-hidden="true"><use href="#i-chevron"/></svg></a></div>

@@ -27,8 +27,9 @@ function renderCounts(s) {
   $("sum-week").textContent = s.week;
   // 지난 마감은 제목 줄에서만 한 번 알린다. 없으면 오늘 남은 마감 수를 보여 준다
   $("hero-due").innerHTML = s.overdue
-    ? ` · 지난 마감 <b class="red">${s.overdue}개</b>`
-    : ` · 오늘 남은 마감 <b>${s.today}개</b>`;
+    ? `<span class="pill-stat red"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg>지난 마감 <b>${s.overdue}개</b></span>`
+    : `<span class="pill-stat${s.today ? " warn" : ""}"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg>오늘 남은 마감 <b>${s.today}개</b></span>`;
+  $("nearest-tile").classList.toggle("hot", !!s.nearest && dueInfo(s.nearest.due_at).cls.includes("due-red"));
 
   if (s.nearest) {
     const { short, cls } = dueInfo(s.nearest.due_at);
@@ -92,8 +93,8 @@ function itemHtml(it, now, isNext) {
     ? `<div class="tl-title"><span class="t">${esc(it.title)}</span>${it.subject_name ? chip(it.subject_name, it.subject_color, true) : ""}</div>`
     : `<div class="tl-title"><span class="dot" style="${color}"></span><span class="t">${esc(it.title)}</span></div>
        ${it.location ? `<div class="tl-place">${esc(it.location)}</div>` : ""}`;
-  return `<li class="${past || done ? "past" : ""}">
-    <span class="tl-time">${task ? hm(start) : `${hm(start)}~${hm(end)}`}</span><span class="tl-kind">${KIND[it.kind]}</span>
+  return `<li class="k-${it.kind}${past || done ? " past" : ""}" style="${color}">
+    <span class="tl-time">${task ? hm(start) : `${hm(start)}<span class="tl-to">~${hm(end)}</span>`}</span><span class="tl-kind">${KIND[it.kind]}</span>
     <div class="tl-body">${body}</div><div>${right}</div></li>`;
 }
 
@@ -233,13 +234,32 @@ async function sync({ auto = false } = {}) {
   if (!auto || mail.data?.found || mail.data?.auto_added || notionChanged || lms.data?.added) toast(syncMessage(cal, mail, notion, lms), { type: googleOk ? "sync" : "fail" });
   loadTimeline();
   loadInbox();
+  api("/api/integrations", { quiet: true }).then((r) => r.ok && renderConnect(r.data));
   if (notionChanged || lmsChanged) loadSummary();
 }
 syncBtn.addEventListener("click", () => sync());
 
 // 대시보드에 들어왔을 때 마지막 동기화가 10분 넘게 지났으면 자동 1회 (@Dev.md logic 9)
 // 구글·노션·LMS 중 하나라도 연결돼 있으면 (노션 양방향 동기화·LMS 과제 2026-11-27 추가)
+// ---------- 연결된 서비스 (연동 설정에 들어가지 않아도 무엇을 연결할 수 있는지 보이게) ----------
+const SERVICES = [
+  ["google", "구글 캘린더·메일", "logo-google", "일정·과제 메일"],
+  ["notion", "노션", "logo-notion", "할 일 주고받기"],
+  ["lms", "학교 LMS", "logo-lms", "과제·시험 마감"],
+];
+function renderConnect(data) {
+  $("connect-list").innerHTML = SERVICES.map(([key, name, logo, what]) => {
+    const x = data?.[key] || { connected: false };
+    const state = !x.connected ? "off" : x.expired ? "warn" : "on";
+    const sub = state === "off" ? what : state === "warn" ? "다시 연결 필요" : x.last_synced_at ? ago(x.last_synced_at) : "연결됨";
+    return `<a class="svc ${state}" href="/settings"><span class="tile brand ${key}" aria-hidden="true"><svg><use href="#${logo}"/></svg></span>
+      <span class="svc-txt"><b>${name}</b><span>${state === "on" ? '<i class="on-dot" aria-hidden="true"></i>' : ""}${esc(sub)}</span></span>
+      ${state === "on" ? "" : `<span class="svc-cta">${state === "warn" ? "다시 연결" : "연결하기"}<svg class="i sm" aria-hidden="true"><use href="#i-chevron"/></svg></span>`}</a>`;
+  }).join("");
+}
+
 api("/api/integrations", { quiet: true }).then((r) => {
+  renderConnect(r.ok ? r.data : null);
   if (!r.ok) return;
   const stale = (x) => x?.connected && !x.expired && Date.now() - (x.last_synced_at ? Date.parse(x.last_synced_at.replace(" ", "T") + "+09:00") : 0) > 10 * 60 * 1000;
   if (stale(r.data.google) || stale(r.data.notion) || stale(r.data.lms)) sync({ auto: true });
