@@ -20,7 +20,7 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 - tasks: 할 일 (마감일, 우선순위, 상태, 출처 manual/ai/voice/gmail, 어떤 메모에서 나왔는지, 완료 시각)
 - briefings: 아침 브리핑 (사용자·날짜당 1개)
 - ai_logs: AI 호출 기록 (기능, 음성 비서가 실행한 도구, 입력, 출력, 토큰, 성공 여부)
-- integrations: 외부 연동 (google = 캘린더+Gmail OAuth 토큰·권한, notion = integration 토큰·내보낼 DB ID)
+- integrations: 외부 연동 (google = 캘린더+Gmail OAuth 토큰·권한, notion = integration 토큰·내보낼 DB ID, lms = 학교 LMS 달력 피드 주소·과목 코드 연결)
 - events: 일정 (구글 캘린더에서 불러온 것 + 음성 비서로 만든 것, 구글 이벤트 ID로 중복 방지)
 - inbox_items: 받은 편지함 (Gmail에서 AI가 과제·마감을 찾은 메일 = 할 일 후보, 수락하면 tasks로. 메일 본문은 저장 안 하고 AI 형식 요약만 저장)
 - share_links: 일정 공유 링크 (사용자당 1개, 추측 불가 토큰, 공개 범위 busy/title/all, 열람 수). 끄면 행 삭제 (2026-11-27 추가)
@@ -56,6 +56,7 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 | GET | /auth/google/callback | 토큰 받아 integrations 저장 → 연동 설정 화면으로 | O |
 | GET | /api/integrations | 내 연동 상태 (provider, 연결 시각, 마지막 동기화, 만료 여부). 토큰은 응답에 넣지 않음 | O |
 | PUT | /api/integrations/notion | 노션 토큰·데이터베이스 ID 저장 | O |
+| PUT | /api/integrations/lms | 학교 LMS 달력 피드 주소 저장 (https + .ac.kr + /feeds/calendars/user_….ics만, 저장 전에 한 번 읽어 확인) | O |
 | DELETE | /api/integrations/:provider | 연동 해제 (해당 provider 데이터는 유지) | O |
 | POST | /api/sync/calendar | 구글 캘린더 이번 달 1일~60일 뒤 일정을 events에 upsert (할 일 월간 달력용, 2026-11-27 변경). 같은 범위에서 구글 응답에 없는 provider=google 일정은 삭제 | O |
 | POST | /api/sync/gmail | 최근 7일 메일 중 새 메일만 AI 분석 → 과제·마감이 있으면 inbox_items 추가, 중요+마감 있으면 tasks 바로 추가 | O |
@@ -69,6 +70,9 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 | POST | /api/assistant | 음성 비서. body { text } → Claude tool use로 도구 실행 → { reply(TTS용 문장), actions[], pending } | O |
 | POST | /api/notion/export | 이번 주(또는 선택한) 할 일을 노션 DB에 행으로 추가, tasks.external_id 기록 | O |
 | POST | /api/notion/sync | 노션에서 고친 페이지를 할 일에 반영, 새 페이지(오늘 이후)는 할 일로 추가, 휴지통 페이지 정리 | O |
+| POST | /api/lms/sync | LMS 피드의 과제·시험 중 오늘 이후 마감만 tasks(source='lms', external_id=과제 주소)로 추가, 마감 변경 반영, LMS에서 없어진 미완료 과제 정리 | O |
+| GET | /api/lms/courses | 피드에 나온 과목 코드 목록 + 예시 과제 + 지금 연결된 내 과목 | O |
+| PUT | /api/lms/courses | 과목 코드 → 내 과목 연결 저장 { map }, 저장 후 바로 다시 가져와 과목 반영 | O |
 | GET | /api/share | 내 공유 링크 상태 (꺼져 있으면 null). { url, visibility, view_count, last_viewed_at } | O |
 | POST | /api/share | 공유 켜기 (랜덤 토큰 생성, 기본 visibility=busy) | O |
 | PATCH | /api/share | 공개 범위 바꾸기 { visibility: busy·title·all } | O |
@@ -138,12 +142,12 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 5. 할 일 상태 변경은 카드 버튼 클릭 → PATCH → 화면 즉시 갱신 (새로고침 없이)
 6. 마감 24시간 이내 = 빨강, 3일 이내 = 주황
 7. 브라우저가 Web Speech API를 지원하지 않으면 텍스트 입력창으로 대체
-8. 외부 API 호출은 services/google.js, services/notion.js에서만. 브라우저는 우리 /api만 부른다
+8. 외부 API 호출은 services/google.js, services/notion.js, services/lms.js에서만. 브라우저는 우리 /api만 부른다
 9. 동기화는 수동(버튼) + 대시보드 진입 시 마지막 동기화가 10분 지났으면 자동 1회
 10. 구글 토큰 만료·취소 시 앱은 계속 동작하고 연동 설정에 "다시 연결" 표시 (DB에 있는 일정은 그대로 보여줌)
 11. Gmail은 먼저 제목·보낸 사람·snippet만 AI에 보내 할 일 후보를 고른다. 후보로 뽑힌 메일만 본문(최대 4000자)을 AI에 보내 정해진 형식(한 줄 요약/할 일/마감/제출·준비, 메일에 없는 항목은 생략)으로 요약하고 요약만 inbox_items.summary에 저장한다. 본문은 저장하지 않는다. 이미 본 메시지 ID는 다시 분석하지 않음 (2026-11-26 결정)
    - 중요 메일 자동 추가 (2026-11-27 결정): AI가 후보마다 important를 함께 판단. 중요 = ① 교수·조교·학과·행정실의 과제·시험·퀴즈·발표 제출/일정(변경) ② 수강신청·성적 이의·장학금·등록금·졸업·휴복학 등 놓치면 불이익인 학사 마감 ③ 기업·기관 담당자가 나에게 직접 보낸 서류·회신·면접 요청. 여러 명 대상 홍보·행사·설문·선택 참여 공지는 제외. 중요하고 마감일이 있으면 받은 편지함을 거치지 않고 바로 tasks(source='gmail', priority='high', 그 마감일)로 추가하고 후보는 accepted로 남긴다. 나머지는 지금처럼 후보
-12. 외부 토큰(구글·노션)은 integrations에만 저장하고 API 응답·로그·화면에 내보내지 않는다 (과제 범위에서 DB 암호화는 생략, DB 계정 접근 제한으로 대체)
+12. 외부 토큰(구글·노션·LMS 피드 주소)은 integrations에만 저장하고 API 응답·로그·화면에 내보내지 않는다 (과제 범위에서 DB 암호화는 생략, DB 계정 접근 제한으로 대체)
 13. 일정 공유 (2026-11-27 추가)
    - 공유 토큰은 crypto.randomBytes(24) base64url 32자. 공유 링크 자체이므로 본인 화면·/api/share 응답에는 보여준다 (외부 연동 토큰과 다름)
    - 친구 화면은 DB만 읽는다. 메일 내용·음성 메모·할 일 상세(우선순위·출처·메모)·일정 장소는 어떤 범위에서도 보내지 않는다. 완료한 할 일은 공유하지 않는다
@@ -165,8 +169,20 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 4. "이번 주 마감 노션에 정리해줘" → 노션 DB에 행 추가 (노션 연동 완료 시)
 5. [브리핑 듣기] → 오늘 수업·일정·마감을 TTS로
 
+# LMS 과제 가져오기 (2026-11-27 결정)
+인하공전 LMS(lms.inhatc.ac.kr)의 과목 강의실은 Canvas 기반 LearningX(lms-app.inhatc.ac.kr)이고, 달력 → '달력 피드'에서 개인 iCal 주소를 준다. 이 공식 피드만 읽는다 (services/lms.js 피드 읽기, services/lms-sync.js DB 반영)
+1. 피드 주소는 주소 자체가 비밀번호라 integrations(provider='lms').access_token에 저장하고 응답·로그·화면에 내보내지 않는다 (화면에는 학교 호스트만). 다른 서버로 요청이 가지 않게 https + .ac.kr + /feeds/calendars/user_….ics 모양만 받는다
+2. 과제(UID event-assignment-*)만 가져오고, 오늘 이후 마감만 할 일로 만든다. 날짜만 있는 마감은 그날 23:59, UTC 시각은 한국 시각으로
+3. 제목 끝 [과목코드-분반-…]은 떼고, 시험 제목의 (과목명-분반-정규-학과)는 과목 이름으로 쓴다. 과목은 설정에서 고른 '과목 코드 → 내 과목' 연결 → 과목 이름 일치 순으로 찾고, 못 찾으면 제목 뒤에 LMS 과목 이름을 붙인다
+4. 학생마다 하나씩 열린 과제('(이름) 질문하기'가 3개 이상)는 내 이름 것만, 없으면 이름 뺀 1개만
+5. 겹침 방지: 같은 과제는 external_id(과제 주소)로 알아본다. 이미 직접·메일·음성으로 적어 둔 같은 할 일(제목 같음, 또는 같은 날 제목 포함)이 있으면 가져오지 않는다
+6. 다시 가져올 때: 마감 변경만 반영하고 사용자가 고친 제목·과목·완료는 건드리지 않는다. 사용자가 지운 과제는 다시 가져오지 않는다(target_ref JSON의 hide). LMS에서 없어진 미완료·마감 전 과제는 지운다
+7. 우선순위: 시험이거나 마감 3일 안이면 high, 아니면 mid. 제출 여부는 피드에 없으므로 완료는 사용자가 직접
+8. 노션 동기화와 분리: source='lms' 할 일은 노션으로 보내거나 지우지 않는다
+9. 대시보드 자동 동기화(10분)·[동기화]·연동 설정 [지금 동기화]에 함께 들어간다
+
 # 범위에서 뺀 것
-- 학교 LMS(인하공전 이러닝시스템) 연동: 자체 개발 시스템이고 iCal 내보내기를 확인하지 못함. 통합로그인 뒤 화면을 긁어오는 방식은 하지 않는다. 시간표는 포털에서 가져오는 대신 음성 비서 add_class로 말해서 넣는다 (2026-11-26 결정)
+- 학교 LMS 화면 긁어오기·로그인 대행: 하지 않는다. LMS 과제는 공식 달력 피드(iCal)로만 가져온다(아래 'LMS 과제 가져오기'). 시간표는 포털에서 가져오는 대신 음성 비서 add_class로 말해서 넣는다 (2026-11-26 결정, 2026-11-27 LMS 피드 연동으로 변경)
 
 # styles
 - 모던 카드 UI, 둥근 모서리, 부드러운 그림자, 과목별 포인트 색상

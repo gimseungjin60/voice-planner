@@ -22,13 +22,15 @@ const TASK_ROW = `SELECT t.task_id, t.title, t.due_at, t.priority, t.status, t.s
 async function pushNow(userId, taskIds) {
   const ids = [].concat(taskIds).map(Number).filter(Number.isInteger);
   if (!ids.length) return 0;
-  const [tasks] = await pool.query(`${TASK_ROW} WHERE t.user_id = ? AND t.task_id IN (?) AND t.external_id IS NOT NULL`, [userId, ids]);
+  const [tasks] = await pool.query(`${TASK_ROW} WHERE t.user_id = ? AND t.task_id IN (?) AND t.external_id IS NOT NULL AND t.source <> 'lms'`, [userId, ids]);
   if (!tasks.length) return 0;
   const n = await integration(userId);
   if (!n) return 0;
   for (const task of tasks) await notion.updatePage({ token: n.access_token, ref: n.target_ref, pageId: task.external_id, task });
   return tasks.length;
 }
+
+// LMS에서 가져온 할 일(source='lms')도 external_id를 쓰지만 노션과는 상관없어 빼고 본다
 
 // 기다리지 않는 버전 (라우터에서 호출)
 function push(userId, taskIds) {
@@ -59,7 +61,7 @@ async function pull(userId) {
 
   const [subjects] = await pool.query("SELECT subject_id, name FROM subjects WHERE user_id = ?", [userId]);
   const subjectId = (name) => subjects.find((s) => squash(s.name) === squash(name))?.subject_id;
-  const [linked] = await pool.query(`${TASK_ROW} WHERE t.user_id = ? AND t.external_id IS NOT NULL`, [userId]);
+  const [linked] = await pool.query(`${TASK_ROW} WHERE t.user_id = ? AND t.external_id IS NOT NULL AND t.source <> 'lms'`, [userId]);
   const byPage = new Map(linked.map((t) => [norm(t.external_id), t]));
 
   let updated = 0;

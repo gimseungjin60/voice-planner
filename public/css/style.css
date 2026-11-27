@@ -1459,10 +1459,12 @@ input.pill:focus {
 .banner > .i {
   color: var(--blue-ink);
 }
-#notion-form.collapsed .setting-form {
+#notion-form.collapsed .setting-form,
+#lms-form.collapsed .setting-form {
   display: none;
 }
-#notion-form .row-end {
+#notion-form .row-end,
+#lms-form .row-end {
   display: flex;
   gap: 6px;
 }
@@ -2761,12 +2763,13 @@ dialog[open] > * {
   background: none;
   font-size: 13px;
 }
-/* 출처 배지: 서비스 고유 색 로고 타일 + 이름 (Gmail 빨강 · Notion 검정 · 캘린더 파랑 · 음성 메모 보라 · 음성 비서 주황) */
+/* 출처 배지: 서비스 고유 색 로고 타일 + 이름 (Gmail 빨강 · Notion 검정 · 캘린더 파랑 · 음성 메모 보라 · 음성 비서 주황 · 학교 LMS 남색) */
 .src.memo { --brand: #8e44ec; }
 .src.voice { --brand: #f08a00; }
 .src.gmail { --brand: #ea4335; }
 .src.notion { --brand: #191919; }
 .src.gcal { --brand: #1a73e8; }
+.src.lms { --brand: #0b4f9c; }
 .task-meta .src,
 .cal-row-meta .src {
   gap: 5px;
@@ -2809,6 +2812,7 @@ a.src:hover .src-ext { opacity: 1; }
 .src-logo.gmail { --brand: #ea4335; }
 .src-logo.notion { --brand: #191919; }
 .src-logo.gcal { --brand: #1a73e8; }
+.src-logo.lms { --brand: #0b4f9c; }
 /* 달력 칸 안: 이름 없이 작은 로고만 */
 .cal-item .src-logo {
   width: 13px;
@@ -5710,6 +5714,18 @@ a.wb-block:hover {
 .tile.brand svg { width: 24px; height: 24px; display: block; }
 .tile.brand.google { border: 1px solid var(--line-3); background: #fff; }
 .tile.brand.notion { background: #191919; }
+.tile.brand.lms { background: #0b4f9c; }
+/* LMS 과목 연결: 과목 코드 한 줄 = 코드·예시 과제 + 내 과목 고르기 */
+.lms-courses { display: grid; gap: 8px; margin: 4px 0 0; padding: 0; list-style: none; }
+.lms-course { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.lms-course .grow { min-width: 0; flex: 1; }
+.lms-course .code { font-weight: 700; font-size: 13px; }
+.lms-course .sample { overflow: hidden; color: var(--ink-3); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.lms-course select { flex: none; max-width: 46%; }
+@media (max-width: 520px) {
+  .lms-course { flex-wrap: wrap; }
+  .lms-course select { max-width: none; width: 100%; }
+}
 .card-head > .btn { flex: none; white-space: nowrap; }
 
 /* 달력: 할 일 · 수업 · 일정 켜고 끄기 칩 */
@@ -5861,4 +5877,12 @@ a.wb-block:hover {
 }
 .tl-day .tl-note.holiday {
   color: var(--red-text);
+}
+#l-detail { padding-left: 18px; }
+/* 좁은 화면: 연동 행의 버튼들은 이름·상태 아래 줄로 (노션·LMS처럼 버튼이 여러 개일 때 겹치지 않게) */
+@media (max-width: 600px) {
+  .setting-row { flex-wrap: wrap; }
+  .setting-row .row-main { flex: 1; min-width: calc(100% - 58px); }
+  .setting-row .row-end { flex-wrap: wrap; width: 100%; padding-left: 58px; }
+  .setting-row .row-end:empty { display: none; }
 }

@@ -11,7 +11,7 @@
 - 음성: 브라우저 Web Speech API(STT `SpeechRecognition`, TTS `speechSynthesis`), 한국어 `ko-KR`
 - AI: Anthropic SDK(`@anthropic-ai/sdk`), 서버에서만 호출. 키는 `.env`의 `ANTHROPIC_API_KEY`
 - 강의 녹음 받아쓰기만 OpenAI `gpt-4o-mini-transcribe` (SDK 없이 fetch, `services/ai.js`). 키는 `.env`의 `OPENAI_API_KEY` (2026-11-23 결정)
-- 외부 연동: 구글(`googleapis`, OAuth 2.0: calendar.events + gmail.readonly), 노션(`@notionhq/client`, internal integration 토큰). 서버에서만 호출, 키는 `.env`
+- 외부 연동: 구글(`googleapis`, OAuth 2.0: calendar.events + gmail.readonly), 노션(`@notionhq/client`, internal integration 토큰), 학교 LMS(Canvas 달력 피드 iCal, 라이브러리 없이 fetch. 2026-11-27 결정). 서버에서만 호출, 키는 `.env`
 
 ## 폴더 구조 (교수님 todosapp 구조를 확장)
 ```
@@ -26,17 +26,19 @@ routes/
   api/briefing.js      # /api/briefing/today
   api/admin.js         # /api/admin (role=admin)
   oauth.js             # /auth/google, /auth/google/callback
-  api/integrations.js  # /api/integrations 연동 상태·노션 설정
+  api/integrations.js  # /api/integrations 연동 상태·노션 설정·LMS 피드 주소
   api/sync.js          # /api/sync/calendar, /api/sync/gmail
   api/inbox.js         # /api/inbox 메일 후보 수락·무시
   api/events.js        # /api/events 일정
   api/timeline.js      # /api/timeline 수업+일정+마감 통합
   api/assistant.js     # /api/assistant 음성 비서
   api/notion.js        # /api/notion/export, /api/notion/sync
+  api/lms.js           # /api/lms/sync, /api/lms/courses 학교 LMS 과제 가져오기 (피드 주소 저장은 api/integrations.js)
   api/share.js         # /api/share 일정 공유 링크 + 주간 보드 데이터 (친구 화면 /s/:token은 pages.js)
 services/ai.js         # Claude 호출은 전부 여기. 라우터에서 SDK 직접 호출 금지
 services/google.js     # 구글 캘린더·Gmail 호출은 전부 여기 (토큰 갱신 포함)
 services/notion.js     # 노션 호출은 전부 여기 (services/notion-sync.js = 노션 양방향 동기화, DB와 묶기)
+services/lms.js        # 학교 LMS 달력 피드(iCal) 읽기는 전부 여기 (services/lms-sync.js = 과제 → 할 일, DB와 묶기)
 middleware/auth.js     # requireLogin, requireAdmin
 views/                 # *.ejs, views/partials/{header,footer,nav}.ejs
 public/css, public/js  # public/js/voice.js = STT/TTS 래퍼
@@ -74,4 +76,4 @@ public/css, public/js  # public/js/voice.js = STT/TTS 래퍼
 
 ## 2차 목표 (지금은 손대지 말 것)
 Spring Boot(Spring AI) MCP 서버가 같은 MySQL DB를 읽어 Claude Desktop에서 플래너를 조작. 다국어 강의 노트도 2차 후보. 그래서 DB 스키마는 Node 전용 꼼수 없이 표준 SQL로 유지.
-(구글 캘린더·Gmail·노션 내보내기 연동은 1차 범위로 옮김. 2026-11-22 결정. 노션 양방향 동기화도 1차로 옮김. 2026-11-27 결정)
+(구글 캘린더·Gmail·노션 내보내기 연동은 1차 범위로 옮김. 2026-11-22 결정. 노션 양방향 동기화·LMS 과제 가져오기도 1차로 옮김. 2026-11-27 결정)

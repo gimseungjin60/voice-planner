@@ -1,6 +1,6 @@
 // UI 미리보기 서버: DB·AI 없이 가짜 데이터로 실제 views/·public/을 그대로 띄운다 (개발용)
 // 실행: npm run preview → http://localhost:3001
-// 상태 바꿔 보기: 아무 주소 뒤에 ?google=connected|expired|disconnected, ?notion=on|off
+// 상태 바꿔 보기: 아무 주소 뒤에 ?google=connected|expired|disconnected, ?notion=on|off, ?lms=on|off
 const path = require("path");
 const express = require("express");
 
@@ -24,7 +24,7 @@ const fail = (res, status, error) => res.status(status).json({ ok: false, error 
 
 // ---------- 가짜 데이터 ----------
 const user = { user_id: 2, email: "student@vp.com", user_name: "김학생", role: "admin" };
-const state = { loggedIn: true, google: "connected", notion: false, notionRef: "", googleSynced: minutesAgo(12), seq: 100, pending: null, share: null };
+const state = { loggedIn: true, google: "connected", notion: false, notionRef: "", lms: true, lmsSynced: minutesAgo(12), lmsMap: {}, googleSynced: minutesAgo(12), seq: 100, pending: null, share: null };
 
 const subjects = [
   { subject_id: 1, name: "심화응용프로젝트", professor: "류교수", color: "#6C8EF5", schedules: [] },
@@ -56,6 +56,8 @@ let tasks = [
   { task_id: 11, subject_id: 3, memo_id: null, title: "OS 2장 정리", due_at: at(-8, "23:59"), priority: "low", status: "done", source: "manual", completed_at: at(-9, "21:00") },
   { task_id: 8, subject_id: 1, memo_id: null, title: "기말 발표 리허설", due_at: at(3, "15:00"), priority: "mid", status: "todo", source: "gmail", mail_id: "18c0ffee12345678" },
   { task_id: 12, subject_id: 1, memo_id: null, title: "심화응용프로젝트 최종발표", due_at: at(10, "23:59"), priority: "mid", status: "todo", source: "notion", external_id: "20789f05-3ce5-80ce-9b0c-ed47c18d7ba8" },
+  { task_id: 13, subject_id: 2, memo_id: null, title: "13주차 실습일지", due_at: at(3, "23:59"), priority: "high", status: "todo", source: "lms", external_id: "https://lms-app.inhatc.ac.kr/courses/2661/assignments/1001" },
+  { task_id: 14, subject_id: null, memo_id: null, title: "중간고사 · 스프링프레임워크", due_at: at(5, "11:30"), priority: "high", status: "todo", source: "lms", external_id: "https://lms-app.inhatc.ac.kr/courses/2662/assignments/1002" },
 ];
 const taskOut = (t) => withSubject({ completed_at: null, created_at: at(-5, "10:00"), ...t });
 
@@ -89,6 +91,7 @@ let inbox = [
 app.use((req, res, next) => {
   if (["connected", "expired", "disconnected"].includes(req.query.google)) state.google = req.query.google;
   if (req.query.notion) state.notion = req.query.notion === "on";
+  if (req.query.lms) state.lms = req.query.lms === "on";
   res.locals.user = state.loggedIn ? user : null;
   res.locals.path = req.path;
   res.locals.when = require("../public/js/fmt").when;
@@ -417,6 +420,7 @@ app.get("/api/integrations", (req, res) =>
   ok(res, {
     google: state.google === "disconnected" ? { connected: false } : { connected: true, expired: state.google === "expired", account_email: "student.kim@gmail.com", scopes: ["calendar", "gmail"], connected_at: at(-2, "21:10"), last_synced_at: state.googleSynced },
     notion: state.notion ? { connected: true, token_hint: "••••3f9a", target_ref: state.notionRef || "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", connected_at: at(-1, "12:00"), last_synced_at: state.notionSynced || null } : { connected: false },
+    lms: state.lms ? { connected: true, host: "lms-app.inhatc.ac.kr", connected_at: at(-1, "22:00"), last_synced_at: state.lmsSynced } : { connected: false },
   }),
 );
 app.put("/api/integrations/notion", (req, res) => {
@@ -427,6 +431,7 @@ app.put("/api/integrations/notion", (req, res) => {
 });
 app.delete("/api/integrations/:provider", (req, res) => {
   if (req.params.provider === "google") state.google = "disconnected";
+  else if (req.params.provider === "lms") state.lms = false;
   else state.notion = false;
   ok(res, null);
 });
@@ -441,6 +446,32 @@ app.post("/api/sync/gmail", async (req, res) => {
   if (state.google !== "connected") return fail(res, 400, "구글 계정을 먼저 연결하세요");
   state.googleSynced = kst();
   ok(res, { found: 0 });
+});
+app.put("/api/integrations/lms", (req, res) => {
+  if (!/\.ac\.kr\/feeds\/calendars\//.test(req.body.feed_url || "")) return fail(res, 400, "LMS 달력 피드 주소가 올바르지 않아요. LMS 달력 → '달력 피드'에서 복사한 주소를 넣어 주세요");
+  state.lms = true;
+  ok(res, { found: 24 });
+});
+app.post("/api/lms/sync", async (req, res) => {
+  await sleep(600);
+  if (!state.lms) return res.status(400).json({ ok: false, error: "LMS가 연결되어 있지 않아요", not_connected: true });
+  state.lmsSynced = kst();
+  ok(res, { added: 0, updated: 0, removed: 0, skipped: 0, unmapped: ["MP869"] });
+});
+const lmsCourses = [
+  { code: "MP926", label: "MP926-3C-00-21404", name: null, samples: ["13주차 실습일지", "기말 최종보고서와 발표자료"], upcoming: 3, subject_id: 2, auto: true },
+  { code: "MP869", label: "MP869-3A-00-21404", name: "스프링프레임워크", samples: ["중간고사"], upcoming: 1, subject_id: null, auto: true },
+  { code: "MP670", label: "MP670-2B-00-21110", name: null, samples: ["기말고사 과제 - AI 바이브 코딩 발표"], upcoming: 1, subject_id: 1, auto: false },
+];
+app.get("/api/subjects", (req, res) => ok(res, subjects));
+app.get("/api/lms/courses", (req, res) => (state.lms ? ok(res, lmsCourses) : fail(res, 400, "LMS가 연결되어 있지 않아요")));
+app.put("/api/lms/courses", (req, res) => {
+  for (const c of lmsCourses) {
+    const v = req.body.map?.[c.code];
+    c.auto = v === undefined;
+    if (!c.auto) c.subject_id = v;
+  }
+  ok(res, { map: req.body.map, added: 0, updated: 1, removed: 0, skipped: 0, unmapped: [] });
 });
 app.post("/api/notion/sync", async (req, res) => {
   await sleep(700);

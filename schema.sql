@@ -75,8 +75,8 @@ CREATE TABLE tasks (
     due_at     DATETIME NULL,                         -- D-day 계산 기준
     priority   ENUM('low','mid','high') NOT NULL DEFAULT 'mid',
     status     ENUM('todo','doing','done') NOT NULL DEFAULT 'todo',
-    source     ENUM('manual','ai','voice','gmail','google','notion') NOT NULL DEFAULT 'manual',  -- voice=음성 비서, gmail=메일 후보 수락
-    external_id VARCHAR(255) NULL,                    -- 노션으로 내보낸 페이지 ID (중복 내보내기 방지)
+    source     ENUM('manual','ai','voice','gmail','google','notion','lms') NOT NULL DEFAULT 'manual',  -- voice=음성 비서, gmail=메일 후보 수락, lms=학교 LMS 과제
+    external_id VARCHAR(255) NULL,                    -- 노션으로 내보낸 페이지 ID (중복 내보내기 방지) / LMS 과제 주소
     completed_at DATETIME NULL,                       -- status가 done이 된 시각 (완료율 통계)
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id)    REFERENCES users(user_id)       ON DELETE CASCADE,
@@ -112,16 +112,16 @@ CREATE TABLE ai_logs (
     FOREIGN KEY (memo_id) REFERENCES voice_memos(memo_id) ON DELETE SET NULL
 );
 
--- 8. 외부 연동 (google = 캘린더+Gmail OAuth, notion = internal integration 토큰)
+-- 8. 외부 연동 (google = 캘린더+Gmail OAuth, notion = internal integration 토큰, lms = 학교 LMS 달력 피드 주소)
 CREATE TABLE integrations (
     integration_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id        INT NOT NULL,
-    provider       ENUM('google','notion') NOT NULL,
-    access_token   TEXT NOT NULL,                     -- 구글 access token / 노션 integration 토큰
+    provider       ENUM('google','notion','lms') NOT NULL,
+    access_token   TEXT NOT NULL,                     -- 구글 access token / 노션 integration 토큰 / LMS 달력 피드 주소(주소가 곧 비밀번호)
     refresh_token  TEXT NULL,                         -- 구글만 (테스트 모드는 7일 후 만료 → 재연결)
     expires_at     DATETIME NULL,
     scopes         VARCHAR(500) NULL,                 -- 승인받은 구글 권한 (calendar.events, gmail.readonly)
-    target_ref     VARCHAR(255) NULL,                 -- 노션: 할 일을 내보낼 데이터베이스 ID
+    target_ref     VARCHAR(1000) NULL,                -- 노션: 할 일을 내보낼 데이터베이스 ID / LMS: 과목 코드 → 과목 연결 JSON
     connected_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_synced_at DATETIME NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,

@@ -1,4 +1,4 @@
-// 연동 설정: 구글(캘린더+Gmail) 상태·연결·해제, 노션 토큰 저장·내보내기·양방향 동기화, 음성 지원 상태
+// 연동 설정: 구글(캘린더+Gmail) 상태·연결·해제, 노션 토큰 저장·내보내기·양방향 동기화, LMS 피드 저장·과제 가져오기·과목 연결, 음성 지원 상태
 const $ = (id) => document.getElementById(id);
 const SCOPE = { calendar: ["calendar", "캘린더"], gmail: ["mail", "메일 읽기"] };
 
@@ -6,6 +6,7 @@ async function load() {
   const r = await api("/api/integrations", { quiet: true });
   const g = r.ok ? r.data.google : { connected: false };
   const n = r.ok ? r.data.notion : { connected: false };
+  loadLms(r.ok ? r.data.lms : { connected: false });
 
   // 구글 (만료되면 위에 '다시 연결' 배너)
   $("g-expired").classList.toggle("hidden", !(g.connected && g.expired));
@@ -79,14 +80,15 @@ $("g-sync-now").addEventListener("click", async (e) => {
   const b = e.currentTarget;
   b.classList.add("loading");
   b.querySelector("span").textContent = "동기화 중…";
-  const [cal, mail, notion] = await Promise.all([
+  const [cal, mail, notion, lms] = await Promise.all([
     api("/api/sync/calendar", { method: "POST", quiet: true }),
     api("/api/sync/gmail", { method: "POST", quiet: true }),
     api("/api/notion/sync", { method: "POST", quiet: true }),
+    api("/api/lms/sync", { method: "POST", quiet: true }),
   ]);
   b.classList.remove("loading");
   b.querySelector("span").textContent = "지금 동기화";
-  toast(syncMessage(cal, mail, notion), { type: cal.ok && mail.ok && !mail.data.ai_failed ? "sync" : "fail" });
+  toast(syncMessage(cal, mail, notion, lms), { type: cal.ok && mail.ok && !mail.data.ai_failed ? "sync" : "fail" });
   load();
 });
 
@@ -116,6 +118,105 @@ $("notion-form").addEventListener("submit", async (e) => {
   $("n-token").value = "";
   toast("노션 설정을 저장했어요");
   load();
+});
+
+// LMS: 피드 주소 저장 → 과제 가져오기 → 과목 코드 ↔ 내 과목 연결
+function lmsResult(d) {
+  const parts = [];
+  if (d.added) parts.push(`새 과제 ${d.added}개`);
+  if (d.updated) parts.push(`바뀐 ${d.updated}개`);
+  if (d.removed) parts.push(`LMS에서 없어진 ${d.removed}개 정리`);
+  const msg = parts.length ? `LMS에서 ${parts.join(" · ")}를 반영했어요` : "LMS에 새로 가져올 과제가 없어요";
+  return d.skipped ? `${msg} (이미 적어 둔 ${d.skipped}개는 건너뜀)` : msg;
+}
+async function lmsSyncNow(btn) {
+  btn?.classList.add("loading");
+  const res = await api("/api/lms/sync", { method: "POST" });
+  btn?.classList.remove("loading");
+  if (!res.ok) return;
+  toast(lmsResult(res.data), { type: "sync" });
+  load();
+}
+
+function loadLms(l) {
+  $("l-status").innerHTML = l.connected
+    ? `<span class="status-dot ok">연결됨</span><span>${esc(l.host || "")}</span><span>마지막 가져오기 ${l.last_synced_at ? ago(l.last_synced_at) : "아직 없음"}</span>`
+    : `<span class="status-dot">연결 안 됨</span><span>LMS 과제·시험 마감을 할 일로 가져와요</span>`;
+  $("lms-form").classList.toggle("collapsed", !!l.connected);
+  $("l-actions").innerHTML = l.connected
+    ? `<button type="button" class="btn text sm" id="l-edit" aria-expanded="false">주소 바꾸기</button>
+       <button type="button" class="btn line sm" id="l-sync"><svg class="i sm" aria-hidden="true"><use href="#i-sync"/></svg><span>지금 가져오기</span></button>
+       <button type="button" class="btn text sm" id="l-off">연결 해제</button>`
+    : "";
+  $("l-feed").placeholder = l.connected ? "새 피드 주소로 바꿀 때만 입력" : "https://lms-app.inhatc.ac.kr/feeds/calendars/user_….ics";
+  $("l-edit")?.addEventListener("click", (e) => {
+    const open = $("lms-form").classList.toggle("collapsed") === false;
+    e.currentTarget.setAttribute("aria-expanded", String(open));
+    e.currentTarget.textContent = open ? "접기" : "주소 바꾸기";
+    if (open) $("l-feed").focus();
+  });
+  $("l-sync")?.addEventListener("click", (e) => lmsSyncNow(e.currentTarget));
+  $("l-off")?.addEventListener("click", async () => {
+    if (!(await ask("LMS 연결을 해제할까요?\n이미 가져온 과제는 할 일에 남아요.", "연결 해제"))) return;
+    if ((await api("/api/integrations/lms", { method: "DELETE" })).ok) load();
+  });
+  $("l-detail").classList.toggle("hidden", !l.connected);
+  if (l.connected) loadCourses();
+}
+
+// 과목 연결 목록: 피드에 나온 과목 코드마다 예시 과제 + 내 과목 고르기 (고르면 바로 저장하고 다시 가져온다)
+async function loadCourses() {
+  $("l-courses").innerHTML = `<li><span class="skel" style="width: 200px; margin: 6px 0"></span></li>`;
+  const [cr, sr] = await Promise.all([api("/api/lms/courses", { quiet: true }), api("/api/subjects", { quiet: true })]);
+  if (!cr.ok) {
+    $("l-courses").innerHTML = `<li class="fine">${esc(cr.error || "과목 목록을 불러오지 못했어요")}</li>`;
+    return;
+  }
+  const subjects = sr.ok ? sr.data : [];
+  if (!cr.data.length) {
+    $("l-courses").innerHTML = `<li class="fine">LMS 달력에 과제가 아직 없어요</li>`;
+    return;
+  }
+  $("l-courses-help").textContent = subjects.length
+    ? "LMS 과목 코드를 내 과목에 연결하면 가져온 과제에 과목이 붙어요. 이름이 같으면 자동으로 연결돼요."
+    : "과목 메뉴에서 시간표 과목을 먼저 만들면 가져온 과제에 과목을 붙일 수 있어요.";
+  $("l-courses").innerHTML = cr.data
+    .map((c) => {
+      // "" = 자동(과목 이름으로 찾기) · "0" = 과목 없이 · 숫자 = 그 과목
+      const autoName = c.auto && c.subject_id ? subjects.find((s) => s.subject_id === c.subject_id)?.name : null;
+      const picked = c.auto ? "" : String(c.subject_id ?? "");
+      const opts = [`<option value="">${autoName ? `자동 · ${esc(autoName)}` : "자동 (같은 이름 과목 없음)"}</option>`, `<option value="0">과목 없이 가져오기</option>`]
+        .concat(subjects.map((s) => `<option value="${s.subject_id}">${esc(s.name)}</option>`))
+        .join("")
+        .replace(`value="${picked}"`, `value="${picked}" selected`);
+      return `<li class="lms-course"><div class="grow"><div class="code">${esc(c.name || c.label || c.code)}${c.name ? ` <span class="fine num">${esc(c.label || c.code)}</span>` : ""}</div>
+        <div class="sample">${esc(c.samples.join(" · "))}${c.upcoming ? ` · 남은 마감 ${c.upcoming}개` : ""}</div></div>
+        <select class="pill" data-code="${esc(c.code)}" aria-label="${esc(c.name || c.code)} 과목 연결">${opts}</select></li>`;
+    })
+    .join("");
+  $("l-courses").querySelectorAll("select").forEach((sel) =>
+    sel.addEventListener("change", async () => {
+      const map = {};
+      $("l-courses").querySelectorAll("select").forEach((x) => x.value !== "" && (map[x.dataset.code] = Number(x.value)));
+      const res = await api("/api/lms/courses", { method: "PUT", body: { map } });
+      if (!res.ok) return;
+      toast("과목 연결을 저장하고 가져온 과제에 반영했어요");
+      loadCourses();
+    }),
+  );
+}
+
+$("lms-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const feed = $("l-feed").value.trim();
+  if (!feed) return $("l-feed").focus();
+  const btn = e.submitter;
+  btn?.classList.add("loading");
+  const r = await api("/api/integrations/lms", { method: "PUT", body: { feed_url: feed } });
+  btn?.classList.remove("loading");
+  if (!r.ok) return;
+  $("l-feed").value = "";
+  await lmsSyncNow(); // 저장하자마자 한 번 가져온다
 });
 
 // 음성 지원 상태
