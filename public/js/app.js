@@ -162,6 +162,9 @@ function syncMessage(cal, mail) {
   const parts = [cal.ok ? `일정 ${cal.data.synced}개` : `일정 실패: ${cal.error}`];
   if (!mail.ok) parts.push(`메일 실패: ${mail.error}`);
   else if (mail.data.ai_failed) parts.push("메일 분석은 다음 동기화 때 다시 시도해요");
-  else parts.push(`새 과제 후보 ${mail.data.found}개`);
+  else {
+    if (mail.data.auto_added) parts.push(`중요 메일 ${mail.data.auto_added}개는 할 일에 바로 추가`);
+    parts.push(`새 과제 후보 ${mail.data.found}개`);
+  }
   return `동기화했어요 · ${parts.join(", ")}`;
 }

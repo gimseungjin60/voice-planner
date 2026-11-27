@@ -64,7 +64,31 @@ async function summarizePending(userId) {
   return done.reduce((a, b) => a + b, 0);
 }
 
+// 중요 메일 후보 → 할 일 (source='gmail'). 후보는 accepted + task_id로 묶어 출처 링크·중복 방지에 쓴다
+async function addAsTask(userId, itemId, subjectId, f) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [t] = await conn.query("INSERT INTO tasks (user_id, subject_id, title, due_at, priority, source) VALUES (?, ?, ?, ?, 'high', 'gmail')", [
+      userId,
+      subjectId,
+      f.title,
+      f.due_at,
+    ]);
+    await conn.query("UPDATE inbox_items SET status = 'accepted', task_id = ? WHERE item_id = ? AND user_id = ? AND status = 'pending'", [t.insertId, itemId, userId]);
+    await conn.commit();
+    return true;
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    console.error("[sync:auto-task]", err.message);
+    return false;
+  } finally {
+    conn.release();
+  }
+}
+
 // 최근 7일 메일 중 처음 보는 것만 AI에 보낸다 (보낸 사람·제목·snippet만). 후보로 뽑힌 메일만 본문을 받아 형식 요약 (본문 저장 안 함)
+// 중요 메일(important)이면서 마감일이 있으면 바로 할 일로 추가하고 후보는 accepted로 남긴다 (받은 편지함 '추가함'에서 확인)
 // 할 일이 없는 메일도 '봤음' 표시로 inbox_items에 ID만 남긴다 (ai_title NULL + ignored → 목록에는 안 보임, 다시 분석 안 함)
 router.post("/gmail", async (req, res, next) => {
   try {
@@ -80,21 +104,23 @@ router.post("/gmail", async (req, res, next) => {
 
     const byMail = new Map(found.map((f) => [f.mail.id, f]));
     const subjectId = (name) => subjects.find((s) => s.name === name)?.subject_id || null;
+    let autoAdded = 0;
     for (const m of mails) {
       const f = byMail.get(m.id);
       if (f) {
-        await pool.query(
+        const [ins] = await pool.query(
           `INSERT IGNORE INTO inbox_items (user_id, provider, external_id, sender, subject, received_at, subject_id, ai_title, ai_due_at)
            VALUES (?, 'gmail', ?, ?, ?, ?, ?, ?, ?)`,
           [userId, m.id, m.sender, m.subject, m.received_at, subjectId(f.subject), f.title, f.due_at],
         );
+        if (ins.affectedRows && f.important && f.due_at && (await addAsTask(userId, ins.insertId, subjectId(f.subject), f))) autoAdded++;
       } else {
         await pool.query("INSERT IGNORE INTO inbox_items (user_id, provider, external_id, status) VALUES (?, 'gmail', ?, 'ignored')", [userId, m.id]);
       }
     }
     const summarized = await summarizePending(userId);
     await pool.query("UPDATE integrations SET last_synced_at = ? WHERE user_id = ? AND provider = 'google'", [pool.kst(), userId]);
-    res.json({ ok: true, data: { found: found.length, checked: mails.length, summarized } });
+    res.json({ ok: true, data: { found: found.length - autoAdded, auto_added: autoAdded, checked: mails.length, summarized } });
   } catch (err) {
     next(err);
   }
