@@ -6,7 +6,24 @@ const board = document.querySelector(".board");
 const ORDER = ["todo", "doing", "done"];
 const STATUS_LABEL = { todo: "할 일", doing: "진행 중", done: "완료" };
 // 할 일이 어디서 왔는지 짧은 배지로 (직접 추가는 배지 없음)
-const SOURCE = { ai: ["mic", "음성 메모"], voice: ["chat", "음성 비서"], gmail: ["mail", "Gmail"], notion: ["doc", "Notion"], google: ["calendar", "구글 캘린더"] };
+// [로고 심볼, 이름, 색 클래스] — 서비스마다 고유 색 타일로 한눈에 구분 (Todoist·Akiflow 연동 칩 방식)
+const SOURCE = { ai: ["memo", "음성 메모", "memo"], voice: ["voice", "음성 비서", "voice"], gmail: ["gmail", "Gmail", "gmail"], notion: ["notion", "Notion", "notion"], google: ["gcal", "캘린더", "gcal"] };
+
+// 출처 로고 타일만 (달력 칸처럼 좁은 곳)
+function srcLogo(t) {
+  const src = SOURCE[t.source];
+  return src ? `<span class="src-logo ${src[2]}" aria-hidden="true"><svg><use href="#logo-${src[0]}"/></svg></span>` : "";
+}
+// 출처 배지: 로고 타일 + 이름. 원본 주소가 있으면 누르면 그 페이지로 이동
+function srcBadge(t) {
+  const src = SOURCE[t.source];
+  if (!src) return "";
+  const link = sourceLink(t);
+  const inner = `${srcLogo(t)}<span class="src-label">${src[1]}</span>${link && link.ext ? '<svg class="i src-ext" aria-hidden="true"><use href="#i-external"/></svg>' : ""}`;
+  return link
+    ? `<a class="src ${src[2]}" ${linkAttrs(link)} title="${link.label}">${inner}</a>`
+    : `<span class="src ${src[2]}" title="출처: ${src[1]}">${inner}</span>`;
+}
 
 // 출처 원본 주소: Gmail 메일 · 노션 페이지 · 음성 메모 상세. 없으면 null
 function sourceLink(t) {
@@ -21,7 +38,6 @@ const linkAttrs = (l) => `href="${esc(l.href)}"${l.ext ? ' target="_blank" rel="
 function card(t) {
   const done = t.status === "done";
   const { label, cls } = dueInfo(t.due_at);
-  const src = SOURCE[t.source];
   const link = sourceLink(t);
   // 제목 줄 오른쪽: 다음 단계로 옮기는 아이콘 버튼 1개 + '…' 메뉴(이전 단계로 · 삭제)
   const step = { todo: ["doing", "play", "시작하기"], doing: ["done", "check", "완료"] }[t.status];
@@ -44,7 +60,7 @@ function card(t) {
       ${t.subject_name ? chip(t.subject_name, t.subject_color, true) : ""}
       ${done ? (t.completed_at ? `<span class="due done">완료 ${md(t.completed_at)}</span>` : "") : t.due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}
       ${t.priority === "high" && !done ? `<span class="prio-high"><svg class="i sm" aria-hidden="true"><use href="#i-flag"/></svg>중요</span>` : ""}
-      ${src ? (link ? `<a class="src" ${linkAttrs(link)} title="${link.label}">` : `<span class="src" title="출처: ${src[1]}">`) + `<svg class="i" aria-hidden="true"><use href="#i-${src[0]}"/></svg><span class="src-label">${src[1]}</span>` + (link ? "</a>" : "</span>") : ""}
+      ${srcBadge(t)}
     </div>
   </article>`;
 }
@@ -68,6 +84,7 @@ function render() {
     col.querySelector(".count").textContent = list.length;
   });
   document.getElementById("total-count").textContent = `${shown.filter((t) => t.status !== "done").length}개 남음`;
+  if (typeof renderCalendar === "function") renderCalendar(); // 달력 보기도 같은 데이터로 다시 그림
 }
 
 async function moveTask(id, to) {
