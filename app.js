@@ -4,6 +4,7 @@ const path = require("path");
 const express = require("express");
 const session = require("express-session");
 
+const { when } = require("./public/js/fmt");
 const app = express();
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
@@ -36,6 +37,7 @@ app.use(
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.path = req.path;
+  res.locals.when = when; // 지난 시각 표기 (public/js/fmt.js, 화면 JS와 같은 규칙)
   next();
 });
 

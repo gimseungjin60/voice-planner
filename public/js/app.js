@@ -97,14 +97,9 @@ function prio(p) {
   return `<span class="prio ${p}" role="img" aria-label="우선순위 ${PRIORITY_LABEL[p]}"><span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>${PRIORITY_LABEL[p]}</span>`;
 }
 
-// "3분 전" 같은 상대 시각 (한국 시간 문자열 기준)
+// 마지막 동기화 같은 지난 시각. 표기 규칙은 fmt.js의 when() 하나로 통일 (방금 · 12분 전 · 오늘 14:05 …)
 function ago(kst) {
-  if (!kst) return "아직 안 함";
-  const min = Math.round((Date.now() - Date.parse(kst.replace(" ", "T") + "+09:00")) / 60000);
-  if (min < 1) return "방금";
-  if (min < 60) return `${min}분 전`;
-  if (min < 1440) return `${Math.floor(min / 60)}시간 전`;
-  return `${Math.floor(min / 1440)}일 전`;
+  return kst ? when(kst) : "아직 안 함";
 }
 
 // 주간 시간표(#tt) 오늘 열에 지금 시각 빨간 선 + 왼쪽 눈금에 시각 (한국 시간)

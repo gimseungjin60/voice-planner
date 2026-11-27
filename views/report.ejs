@@ -89,7 +89,7 @@
           <div class="row">
             <span class="check on" aria-hidden="true"></span>
             <div class="row-main"><div class="row-title"><%= t.title %></div></div>
-            <span class="fine num"><%= t.subject_name || '과목 없음' %> · <%= md(t.completed_at) %> <%= t.completed_at.slice(11, 16) %> 완료</span>
+            <span class="fine num"><%= t.subject_name || '과목 없음' %> · <%= when(t.completed_at) %> 완료</span>
           </div>
         <% }) %>
       </div>

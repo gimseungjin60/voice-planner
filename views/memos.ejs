@@ -1,7 +1,5 @@
 <%- include('partials/header') %>
-<% const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
-   const when = (v) => `${Number(v.slice(5, 7))}/${Number(v.slice(8, 10))} (${WEEK[new Date(v.slice(0, 10) + 'T12:00:00Z').getUTCDay()]}) ${v.slice(11, 16)}`;
-   const pad = (n) => String(n).padStart(2, '0');
+<% const pad = (n) => String(n).padStart(2, '0');
    const dur = (s) => !s ? '' : s >= 3600 ? `${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}` : `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
    const first = (list.page - 1) * 10 + 1; // 한 쪽 10개 (routes/api/memos.js PAGE_SIZE)
    const pageUrl = (p) => `/memos?page=${p}${subject ? '&subject=' + subject : ''}`; %>

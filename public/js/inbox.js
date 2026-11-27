@@ -24,14 +24,6 @@ function parseSender(s = "") {
   return { name, addr: m ? m[2] : "", initial: name.charAt(0).toUpperCase() || "?" };
 }
 
-// 받은 시각: 오늘 09:12 / 어제 17:40 / 11/20 09:12
-function received(v) {
-  if (!v) return "";
-  const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() + 9 * 3600000 - 86400000).toISOString().slice(0, 10);
-  const day = v.slice(0, 10);
-  return `${day === today ? "오늘" : day === yesterday ? "어제" : md(v)} ${v.slice(11, 16)}`;
-}
 
 function itemHtml(it) {
   const { label, cls } = dueInfo(it.ai_due_at);
@@ -65,7 +57,7 @@ function itemHtml(it) {
     <div class="mail-head">
       <span class="avatar" style="${it.subject_color ? `--c:${esc(it.subject_color)}` : ""}" aria-hidden="true">${esc(from.initial)}</span>
       <div class="grow mail-from">${esc(from.name)}${from.addr ? `<small>${esc(from.addr)}</small>` : ""}</div>
-      <div class="mail-time">${received(it.received_at)}</div>
+      <div class="mail-time">${when(it.received_at)}</div>
     </div>
     <div class="mail-subject">${esc(it.subject)}</div>
     ${summaryBlock(it.summary)}
