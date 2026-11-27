@@ -17,7 +17,8 @@ function parseJson(text) {
 }
 
 // 공통 호출 + ai_logs 기록. json=true면 파싱 결과(실패 시 null), 아니면 텍스트
-async function call({ feature, userId, memoId = null, system, input, json = true, maxTokens = 1024 }) {
+// max_tokens는 넉넉하게: 모델이 생각하는 데 쓰는 토큰도 여기 포함돼서 1024면 JSON이 중간에 잘린다 (2026-11-27 확인)
+async function call({ feature, userId, memoId = null, system, input, json = true, maxTokens = 4096 }) {
   let text = null;
   let tokens = null;
   let result = null;
@@ -184,7 +185,7 @@ async function summarizeLecture({ userId, memoId, transcript, subjects }) {
   const system = `너는 대학 강의 요약 도우미다. 강의 녹음 STT 원문(오타 있음)을 정리한다.
 내 과목 목록: ${subjects.length ? subjects.join(", ") : "(없음)"}
 JSON만 출력: {"subject":"목록 중 과목명 또는 null","points":["핵심 3~5줄"],"exam":["시험에 나올 것 같은 포인트 1~3개"]}`;
-  const r = await call({ feature: "summary", userId, memoId, system, input: transcript, maxTokens: 1500 });
+  const r = await call({ feature: "summary", userId, memoId, system, input: transcript });
   if (!r) return null;
   const points = (r.points || []).map((p) => `• ${p}`).join("\n");
   const exam = (r.exam || []).map((p) => `★ ${p}`).join("\n");
@@ -205,7 +206,7 @@ async function prioritize({ userId, tasks, now }) {
 마감이 지난 것(지남), 마감이 가까운 것, 우선순위 high, 이미 진행 중(doing)인 것을 우선한다. 이유는 20자 내외 한국어 한 줄.
 (지남) 표시가 있으면 이유에 "지났어요"처럼 지난 사실을 쓰고 "오늘 밤 마감" 같은 앞으로의 표현은 쓰지 않는다.
 JSON만 출력: {"top":[{"task_id":1,"reason":"..."}]}`;
-  const r = await call({ feature: "prioritize", userId, system, input, maxTokens: 400 });
+  const r = await call({ feature: "prioritize", userId, system, input });
   if (!r || !Array.isArray(r.top)) return null;
   const byId = new Map(tasks.map((t) => [t.task_id, t]));
   return r.top
@@ -222,7 +223,7 @@ async function makeBriefing({ userId, userName, today, classes, dueTasks }) {
 다가오는 마감: ${dueTasks.map((t) => `${t.title}(${t.due_at})`).join(", ") || "없음"}`;
   const system = `너는 다정한 아침 브리핑 비서다. 주어진 정보로 소리 내어 읽을 30초 분량(3~5문장) 한국어 브리핑을 쓴다.
 이모지·마크다운·괄호 없이 말하듯이. 시간은 "오전 10시"처럼 읽기 쉽게. 마지막에 짧은 응원 한마디.`;
-  return call({ feature: "briefing", userId, system, input, json: false, maxTokens: 500 });
+  return call({ feature: "briefing", userId, system, input, json: false });
 }
 
 // 5. 메일(보낸 사람·제목·snippet만) → 과제·마감이 있는 메일만 할 일 후보로. 실패하면 null (호출부는 다음 동기화 때 다시 시도)
@@ -245,7 +246,7 @@ async function analyzeMails({ userId, mails, subjects, today }) {
   3) 기업·기관 담당자가 나에게 직접 보낸 서류 제출·회신·면접 일정 요청
   여러 명에게 보내는 홍보·행사 안내·설문·참여가 선택인 공지는 마감이 있어도 false.
 JSON만 출력: {"items":[{"index":0,"title":"...","due_at":"YYYY-MM-DD HH:mm","subject":"과목명 또는 null","important":true}]} (할 일이 없으면 items는 빈 배열)`;
-  const r = await call({ feature: "mail", userId, system, input, maxTokens: 1500 });
+  const r = await call({ feature: "mail", userId, system, input });
   if (!r || !Array.isArray(r.items)) return null;
   return r.items
     .filter((x) => mails[Number(x.index)] && x.title)
@@ -275,7 +276,7 @@ async function summarizeMail({ userId, sender, subject, body, today }) {
 규칙: 메일에 근거가 없는 항목은 지어내지 말고 null. 인사말·서명·홍보 문구는 무시. 존댓말 대신 짧은 개조식. 이모지·마크다운 금지.
 JSON만 출력: {"headline":"...","todo":"... 또는 null","due":"... 또는 null","submit":"... 또는 null"}`;
   const input = `보낸 사람: ${sender}\n제목: ${subject}\n본문:\n${body}`;
-  const r = await call({ feature: "mail", userId, system, input, maxTokens: 400 });
+  const r = await call({ feature: "mail", userId, system, input });
   if (!r || !r.headline) return null;
   return MAIL_FIELDS.filter(([k]) => r[k] && String(r[k]).trim() && String(r[k]).trim() !== "null")
     .map(([k, label]) => `${label}: ${String(r[k]).replace(/\s+/g, " ").trim().slice(0, 80)}`)
@@ -373,7 +374,7 @@ async function runAssistant({ userId, text, today, subjects, runTool }) {
     for (let round = 0; round <= 3; round++) {
       const msg = await client.messages.create({
         model: MODEL,
-        max_tokens: 1024,
+        max_tokens: 4096,
         system,
         // 마지막 바퀴는 도구 없이 답만 받는다 (도구 호출 최대 3회)
         ...(round < 3 ? { tools: ASSISTANT_TOOLS } : {}),
