@@ -99,13 +99,16 @@ function itemHtml(it, now, isNext) {
 
 const nowRow = (now) => `<li class="tl-now"><span>${hm(now)} 지금</span><i aria-hidden="true"></i></li>`;
 
-function renderTimeline(items) {
+// days: { 'YYYY-MM-DD': { kind, label } } 공휴일·종강·시험 기간·방학 (서버 config/academic.js)
+function renderTimeline(items, days = {}) {
   const now = kstNow();
   const today = now.slice(0, 10);
+  const todayNote = days[today];
   if (!items.length) {
+    const why = range === "today" && todayNote && ["holiday", "break"].includes(todayNote.kind) ? `${todayNote.label}${/[가-힣]$/.test(todayNote.label) && (todayNote.label.charCodeAt(todayNote.label.length - 1) - 0xac00) % 28 === 0 ? "예요" : "이에요"}. ` : "";
     $("timeline").innerHTML = `<li class="empty"><div class="empty-icon"><svg class="i"><use href="#i-calendar"/></svg></div>
       <p class="title">${range === "today" ? "오늘은 일정이 없어요" : "이번 주 일정이 없어요"}</p>
-      <p class="desc">수업도 약속도 없는 ${range === "today" ? "하루" : "한 주"}예요.</p></li>`;
+      <p class="desc">${why}수업도 약속도 없는 ${range === "today" ? "하루" : "한 주"}예요.</p></li>`;
     return;
   }
   const at = (it) => (it.kind === "task" ? it.due_at : it.start_at);
@@ -117,7 +120,8 @@ function renderTimeline(items) {
     const day = at(it).slice(0, 10);
     if (range === "week" && day !== lastDay) {
       const dow = WEEK[new Date(day + "T12:00:00Z").getUTCDay()];
-      html += `<li class="tl-day">${dow} ${md(day)}${day === today ? " · 오늘" : day === addDays(today, 1) ? " · 내일" : ""}</li>`;
+      const note = days[day] && days[day].kind !== "break" ? ` · <span class="tl-note ${days[day].kind}">${esc(days[day].label)}</span>` : "";
+      html += `<li class="tl-day">${dow} ${md(day)}${day === today ? " · 오늘" : day === addDays(today, 1) ? " · 내일" : ""}${note}</li>`;
       lastDay = day;
     }
     const next = !nowShown && day === today && at(it) > now;
@@ -146,7 +150,7 @@ async function loadTimeline() {
   const r = await api(`/api/timeline?from=${from}&to=${to}`, { quiet: true });
   if (r.ok) {
     banner(r.data.google);
-    return renderTimeline(r.data.items);
+    return renderTimeline(r.data.items, r.data.days);
   }
   // 타임라인 API가 아직 없으면 오늘 수업만이라도 보여준다
   banner("disconnected");

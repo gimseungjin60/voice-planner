@@ -142,8 +142,10 @@ app.delete("/api/share", (req, res) => {
   ok(res, null);
 });
 
+const academic = require("../config/academic");
 const classesOn = (ymd) =>
   schedules
+    .filter(() => academic.classOn(ymd))
     .filter((x) => x.day_of_week === dowOf(ymd))
     .map((x) => ({ ...x, name: subj(x.subject_id).name, color: subj(x.subject_id).color }))
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
@@ -385,7 +387,9 @@ app.get("/api/timeline", async (req, res) => {
     .filter((e) => e.start_at.slice(0, 10) >= from && e.start_at.slice(0, 10) <= to && (state.google !== "disconnected" || e.provider === "manual"))
     .forEach((e) => items.push({ kind: "event", ...e }));
   tasks.filter((t) => t.due_at && t.due_at.slice(0, 10) >= from && t.due_at.slice(0, 10) <= to).forEach((t) => items.push({ kind: "task", ...taskOut(t) }));
-  ok(res, { items, google: state.google });
+  const days = {};
+  for (let d = from; d <= to; d = addDays(d, 1)) if (academic.dayNote(d)) days[d] = academic.dayNote(d);
+  ok(res, { items, days, google: state.google });
 });
 
 // ---------- API: 받은 편지함·연동·동기화 ----------

@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const express = require("express");
 const pool = require("../../db");
 const { requireLogin } = require("../../middleware/auth");
+const academic = require("../../config/academic");
 
 const router = express.Router();
 
@@ -142,14 +143,15 @@ function buildBoard({ classes, events, tasks }, monday, level, nowKst) {
       blocks: [],
       allDay: [],
       deadlines: [],
+      note: academic.dayNote(ymd), // 공휴일·종강·시험 기간·방학 표시
     };
   });
   const counts = { class: 0, event: 0, deadline: 0 };
 
-  // 수업: 요일별 시간표를 이 주 날짜에 펼친다
+  // 수업: 요일별 시간표를 이 주 날짜에 펼친다. 방학·공휴일은 건너뛴다
   for (const c of classes) {
     const day = days.find((d) => d.dow === c.day_of_week);
-    if (!day) continue;
+    if (!day || !academic.classOn(day.ymd)) continue;
     counts.class++;
     day.blocks.push({
       kind: "class",

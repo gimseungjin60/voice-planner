@@ -5,6 +5,7 @@ const express = require("express");
 const pool = require("../../db");
 const ai = require("../../services/ai");
 const { requireLogin } = require("../../middleware/auth");
+const academic = require("../../config/academic");
 const { toDatetime, ownSubjectId, TASK_SELECT } = require("./tasks");
 const { createEvent } = require("./events");
 
@@ -41,7 +42,8 @@ const normTime = (t) => {
 
 // 그날 바쁜 시간 (수업 + 일정), 분 단위 [start, end, 이름]
 async function busyOn(userId, date) {
-  const [classes] = await pool.query(
+  // 방학·공휴일에는 시간표 수업이 없다 (config/academic.js)
+  const [classes] = !academic.classOn(date) ? [[]] : await pool.query(
     `SELECT s.name, sc.start_time, sc.end_time FROM schedules sc JOIN subjects s ON s.subject_id = sc.subject_id
      WHERE s.user_id = ? AND sc.day_of_week = ? ORDER BY sc.start_time`,
     [userId, dayOf(date)],
