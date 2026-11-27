@@ -6,14 +6,15 @@
    const days = [1, 2, 3, 4, 5].concat(slots.some((x) => x.day_of_week === 6) ? [6] : [], slots.some((x) => x.day_of_week === 0) ? [0] : []);
    const from = Math.min(9, ...slots.map((x) => Math.floor(toMin(x.start_time) / 60)));
    const to = Math.max(18, ...slots.map((x) => Math.ceil(toMin(x.end_time) / 60)));
-   const row = (min) => Math.round((min - from * 60) / 30) + 2;
+   // 5분 단위 줄: 13:35·16:15처럼 정각·30분이 아닌 수업도 제자리에 그린다
+   const row = (min) => Math.round((min - from * 60) / 5) + 2;
    const todayDow = typeof locals.todayDow === "number" ? locals.todayDow : -1;
    const compact = !!locals.ttCompact;
    // 이번 주 날짜 (한국 시간, 월요일 시작)
    const kstNow = new Date(Date.now() + 9 * 3600000);
    const dateOf = (dow) => new Date(kstNow.getTime() + (((dow + 6) % 7) - ((kstNow.getUTCDay() + 6) % 7)) * 86400000).getUTCDate(); %>
 <div class="tt-wrap <%= compact ? '' : 'bare' %>">
-  <div class="tt <%= compact ? 'compact' : '' %>" id="tt" style="--days: <%= days.length %>; --slots: <%= (to - from) * 2 %>" data-from="<%= from %>" data-today-col="<%= days.indexOf(todayDow) %>">
+  <div class="tt <%= compact ? 'compact' : '' %>" id="tt" style="--days: <%= days.length %>; --slots: <%= (to - from) * 12 %>" data-from="<%= from %>" data-today-col="<%= days.indexOf(todayDow) %>">
     <div class="tt-corner"></div>
     <% days.forEach((d, i) => { const today = d === todayDow; %>
       <div class="tt-dayhead <%= today ? 'today' : '' %>" style="grid-column: <%= i + 2 %>">
@@ -22,9 +23,9 @@
       </div>
     <% }) %>
     <% for (let h = from; h < to; h++) { %>
-      <div class="tt-hour" style="grid-row: <%= (h - from) * 2 + 2 %>"><%= pad(h) %>:00</div>
+      <div class="tt-hour" style="grid-row: <%= (h - from) * 12 + 2 %>"><%= pad(h) %>:00</div>
       <% days.forEach((d, i) => { %>
-        <div class="tt-cell <%= d === todayDow ? 'today' : '' %>" style="grid-column: <%= i + 2 %>; grid-row: <%= (h - from) * 2 + 2 %> / span 2"></div>
+        <div class="tt-cell <%= d === todayDow ? 'today' : '' %>" style="grid-column: <%= i + 2 %>; grid-row: <%= (h - from) * 12 + 2 %> / span 12"></div>
       <% }) %>
     <% } %>
     <% slots.filter((x) => days.includes(x.day_of_week)).forEach((x) => { const range = x.start_time.slice(0, 5) + '~' + x.end_time.slice(0, 5);

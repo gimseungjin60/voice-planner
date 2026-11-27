@@ -109,8 +109,8 @@ function ttNowLine() {
   if (col < 0) return;
   const kst = new Date(Date.now() + 9 * 3600000);
   const min = kst.getUTCHours() * 60 + kst.getUTCMinutes() - Number(tt.dataset.from) * 60;
-  if (min < 0 || min > tt.style.getPropertyValue("--slots") * 30) return;
-  const top = `calc(${min / 30} * var(--slot))`;
+  if (min < 0 || min > tt.style.getPropertyValue("--slots") * 5) return;
+  const top = `calc(${min / 5} * var(--slot))`;
   const line = document.createElement("div");
   line.className = "tt-now";
   line.style.gridColumn = col + 2;
