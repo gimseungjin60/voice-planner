@@ -32,11 +32,11 @@ const subjects = [
   { subject_id: 3, name: "운영체제", professor: "이교수", color: "#7CC9A0", schedules: [] },
 ];
 const schedules = [
-  { schedule_id: 1, subject_id: 1, day_of_week: 1, start_time: "10:00:00", end_time: "12:00:00", room: "공학관 301" },
-  { schedule_id: 2, subject_id: 2, day_of_week: 2, start_time: "13:30:00", end_time: "15:30:00", room: "공학관 204" },
+  { schedule_id: 1, subject_id: 1, day_of_week: 1, start_time: "13:35:00", end_time: "16:15:00", room: "공학관 301" },
+  { schedule_id: 2, subject_id: 2, day_of_week: 2, start_time: "16:20:00", end_time: "19:00:00", room: "공학관 204" },
   { schedule_id: 3, subject_id: 2, day_of_week: 4, start_time: "13:00:00", end_time: "14:00:00", room: "공학관 204" },
   { schedule_id: 4, subject_id: 3, day_of_week: 3, start_time: "09:00:00", end_time: "11:00:00", room: "정보관 102" },
-  { schedule_id: 5, subject_id: 3, day_of_week: 1, start_time: "14:00:00", end_time: "15:30:00", room: "정보관 실습실" },
+  { schedule_id: 5, subject_id: 3, day_of_week: 4, start_time: "09:55:00", end_time: "12:35:00", room: "정보관 실습실" },
 ];
 const subj = (id) => subjects.find((s) => s.subject_id === Number(id));
 const withSubject = (row) => ({ ...row, subject_name: subj(row.subject_id)?.name || null, subject_color: subj(row.subject_id)?.color || null });
