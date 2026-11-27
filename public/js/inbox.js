@@ -149,7 +149,12 @@ syncBtn.addEventListener("click", async () => {
   syncBtn.classList.remove("loading");
   syncBtn.querySelector("span").textContent = "메일 확인";
   if (r.ok && r.data.ai_failed) toast("메일을 AI로 분석하지 못했어요. 잠시 후 다시 시도해 주세요", { type: "fail" });
-  else if (r.ok) toast(r.data.found ? `새 과제 후보 ${r.data.found}개를 찾았어요` : "새로 찾은 과제가 없어요", { type: "sync" });
+  else if (r.ok) {
+    const parts = [];
+    if (r.data.auto_added) parts.push(`중요 메일 ${r.data.auto_added}개는 할 일에 바로 추가했어요`);
+    if (r.data.found) parts.push(`새 과제 후보 ${r.data.found}개를 찾았어요`);
+    toast(parts.join(" · ") || "새로 찾은 과제가 없어요", { type: "sync" });
+  }
   load();
 });
 

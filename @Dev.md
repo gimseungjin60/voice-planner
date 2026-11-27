@@ -58,7 +58,7 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 | PUT | /api/integrations/notion | 노션 토큰·데이터베이스 ID 저장 | O |
 | DELETE | /api/integrations/:provider | 연동 해제 (해당 provider 데이터는 유지) | O |
 | POST | /api/sync/calendar | 구글 캘린더 오늘~14일 일정을 events에 upsert. 같은 범위에서 구글 응답에 없는 provider=google 일정은 삭제 | O |
-| POST | /api/sync/gmail | 최근 7일 메일 중 새 메일만 AI 분석 → 과제·마감이 있으면 inbox_items 추가 | O |
+| POST | /api/sync/gmail | 최근 7일 메일 중 새 메일만 AI 분석 → 과제·마감이 있으면 inbox_items 추가, 중요+마감 있으면 tasks 바로 추가 | O |
 | GET | /api/inbox?status=pending | 받은 편지함 후보 목록 | O |
 | POST | /api/inbox/:id/accept | 후보 → tasks 저장(source='gmail'), status=accepted | O |
 | POST | /api/inbox/:id/ignore | 후보 무시 | O |
@@ -138,6 +138,7 @@ database: voiceplanner (schema.sql 참고, 11개 테이블)
 9. 동기화는 수동(버튼) + 대시보드 진입 시 마지막 동기화가 10분 지났으면 자동 1회
 10. 구글 토큰 만료·취소 시 앱은 계속 동작하고 연동 설정에 "다시 연결" 표시 (DB에 있는 일정은 그대로 보여줌)
 11. Gmail은 먼저 제목·보낸 사람·snippet만 AI에 보내 할 일 후보를 고른다. 후보로 뽑힌 메일만 본문(최대 4000자)을 AI에 보내 정해진 형식(한 줄 요약/할 일/마감/제출·준비, 메일에 없는 항목은 생략)으로 요약하고 요약만 inbox_items.summary에 저장한다. 본문은 저장하지 않는다. 이미 본 메시지 ID는 다시 분석하지 않음 (2026-11-26 결정)
+   - 중요 메일 자동 추가 (2026-11-27 결정): AI가 후보마다 important를 함께 판단. 중요 = ① 교수·조교·학과·행정실의 과제·시험·퀴즈·발표 제출/일정(변경) ② 수강신청·성적 이의·장학금·등록금·졸업·휴복학 등 놓치면 불이익인 학사 마감 ③ 기업·기관 담당자가 나에게 직접 보낸 서류·회신·면접 요청. 여러 명 대상 홍보·행사·설문·선택 참여 공지는 제외. 중요하고 마감일이 있으면 받은 편지함을 거치지 않고 바로 tasks(source='gmail', priority='high', 그 마감일)로 추가하고 후보는 accepted로 남긴다. 나머지는 지금처럼 후보
 12. 외부 토큰(구글·노션)은 integrations에만 저장하고 API 응답·로그·화면에 내보내지 않는다 (과제 범위에서 DB 암호화는 생략, DB 계정 접근 제한으로 대체)
 13. 일정 공유 (2026-11-27 추가)
    - 공유 토큰은 crypto.randomBytes(24) base64url 32자. 공유 링크 자체이므로 본인 화면·/api/share 응답에는 보여준다 (외부 연동 토큰과 다름)

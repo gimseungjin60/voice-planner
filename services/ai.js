@@ -197,6 +197,7 @@ async function makeBriefing({ userId, userName, today, classes, dueTasks }) {
 }
 
 // 5. 메일(보낸 사람·제목·snippet만) → 과제·마감이 있는 메일만 할 일 후보로. 실패하면 null (호출부는 다음 동기화 때 다시 시도)
+//    important = 놓치면 손해가 큰 메일 → 마감일이 있으면 받은 편지함을 거치지 않고 바로 할 일로 (2026-11-27 결정)
 async function analyzeMails({ userId, mails, subjects, today }) {
   if (!mails.length) return [];
   const input = mails.map((m, i) => `${i}|${m.sender}|${m.subject}|${m.snippet}`).join("\n");
@@ -209,7 +210,12 @@ async function analyzeMails({ userId, mails, subjects, today }) {
 - title은 "기말 리포트 제출"처럼 할 일 이름으로 30자 이내.
 - 마감이 보이면 due_at을 "YYYY-MM-DD HH:mm"으로, 시간이 없으면 23:59. 모르면 null.
 - subject는 내 과목 목록에 있는 이름 중에서만, 없으면 null.
-JSON만 출력: {"items":[{"index":0,"title":"...","due_at":"YYYY-MM-DD HH:mm","subject":"과목명 또는 null"}]} (할 일이 없으면 items는 빈 배열)`;
+- important는 아래 중 하나면 true, 애매하면 false:
+  1) 교수·조교·학과·학교 행정실이 보낸 과제·시험·퀴즈·발표의 제출 또는 일정(변경 포함)
+  2) 수강신청·성적 이의·장학금·등록금·졸업·휴복학처럼 기한을 놓치면 불이익이 있는 학사 마감
+  3) 기업·기관 담당자가 나에게 직접 보낸 서류 제출·회신·면접 일정 요청
+  여러 명에게 보내는 홍보·행사 안내·설문·참여가 선택인 공지는 마감이 있어도 false.
+JSON만 출력: {"items":[{"index":0,"title":"...","due_at":"YYYY-MM-DD HH:mm","subject":"과목명 또는 null","important":true}]} (할 일이 없으면 items는 빈 배열)`;
   const r = await call({ feature: "mail", userId, system, input, maxTokens: 1500 });
   if (!r || !Array.isArray(r.items)) return null;
   return r.items
@@ -219,6 +225,7 @@ JSON만 출력: {"items":[{"index":0,"title":"...","due_at":"YYYY-MM-DD HH:mm","
       title: String(x.title).slice(0, 200),
       due_at: /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(x.due_at || "") ? x.due_at.slice(0, 16) + ":00" : null,
       subject: subjects.includes(x.subject) ? x.subject : null,
+      important: x.important === true,
     }));
 }
 
