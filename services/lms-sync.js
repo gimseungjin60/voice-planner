@@ -77,16 +77,19 @@ function subjectFinder(subjects, map) {
 }
 
 // 이미 적어 둔 할 일과 같은 과제인지: 제목이 같거나, 같은 날 마감이면서
-// ① 한쪽 제목이 다른 쪽을 포함 ② 같은 과목 ③ '과제·기말'처럼 흔한 말을 뺀 3글자 이상 낱말이 겹침 (예: 'AI 바이브 코딩 발표' ↔ '기말 프로젝트(바이브코딩)')
+// ① 한쪽 제목이 다른 쪽을 포함 ② 같은 과목이면서 두 글자 낱말이 겹침 ③ '과제·기말'처럼 흔한 말을 뺀 3글자 이상 낱말이 겹침 (예: 'AI 바이브 코딩 발표' ↔ '기말 프로젝트(바이브코딩)')
 const COMMON = new Set(["과제", "제출", "기말", "중간", "발표", "기말고사", "중간고사", "보고서", "레포트", "리포트", "실습", "주차", "시험", "퀴즈", "프로젝트", "report", "자료", "발표자료"]);
 const words = (s) => String(s || "").toLowerCase().split(/[^0-9a-z가-힣]+/).filter((w) => w.length >= 3 && !COMMON.has(w) && !/^\d+$/.test(w));
+const STOP_PAIRS = new Set(["과제", "제출", "주차", "실습", "자료"]);
+const pairs = (t) => new Set([...Array(Math.max(t.length - 1, 0)).keys()].map((i) => t.slice(i, i + 2)).filter((p) => /^[가-힣]{2}$/.test(p) && !STOP_PAIRS.has(p)));
 function sameTask(x, item, sid) {
   const a = squash(x.title);
   const b = squash(item.title);
   if (a === b) return true;
   if (!x.due_at || x.due_at.slice(0, 10) !== item.due_at.slice(0, 10)) return false;
   if (b.length >= 4 && (a.includes(b) || b.includes(a))) return true;
-  if (sid && x.subject_id === sid) return true;
+  // 같은 과목이면 두 글자 낱말 하나만 겹쳐도 (예: '심화응용프로젝트 최종발표(기말)' ↔ '기말 최종보고서와 발표자료')
+  if (sid && x.subject_id === sid && [...pairs(a)].some((p) => pairs(b).has(p))) return true;
   return words(item.title).some((w) => a.includes(w)) || words(x.title).some((w) => b.includes(w));
 }
 
@@ -125,6 +128,7 @@ async function pull(userId, { remap = false } = {}) {
   let skipped = 0;
   // 먼저 훑기: 직접 적어 둔 같은 할 일에 과목이 있으면 그 과목 코드 연결을 배워 둔다 (같은 과목의 다른 과제에도 과목이 붙게)
   let learned = false;
+  let hiddenNow = false;
   for (const item of items) {
     if (!item.course_code || conf.map[item.course_code] !== undefined || byExt.has(extOf(item)) || item.due_at.slice(0, 10) < today) continue;
     const dup = mine.find((x) => x.source !== "lms" && x.subject_id && sameTask(x, item, null));
@@ -151,6 +155,14 @@ async function pull(userId, { remap = false } = {}) {
       const set = (col, v) => sets.push(`${col} = ?`) && params.push(v);
       const subjectId = (remap && mappedCodes.has(item.course_code)) || !t.subject_id ? sid : t.subject_id;
       if (subjectId !== t.subject_id) set("subject_id", subjectId);
+      // 과목을 새로 알게 되어 직접 적어 둔 할 일과 같은 과제로 보이면 LMS 쪽을 지우고 다시 가져오지 않는다
+      if (subjectId && subjectId !== t.subject_id && t.status !== "done" && mine.some((x) => x.source !== "lms" && sameTask(x, item, subjectId))) {
+        await pool.query("DELETE FROM tasks WHERE task_id = ? AND user_id = ? AND source = 'lms'", [t.task_id, userId]);
+        conf.hide.push(assignmentId(ext));
+        hiddenNow = true;
+        removed++;
+        continue;
+      }
       if (t.status !== "done") {
         if (item.due_at !== t.due_at) set("due_at", item.due_at);
         // 과목이 정해지면 붙여 두었던 ' · LMS 과목 이름'을 뗀다 (과목이 없어지면 다시 붙인다)
@@ -190,7 +202,7 @@ async function pull(userId, { remap = false } = {}) {
   // 숨김 목록은 피드에 아직 있는 과제만 남긴다 (길이 제한)
   const live = new Set([...seen].map(assignmentId));
   const hide = conf.hide.filter((id) => live.has(id));
-  if (learned || hide.length !== conf.hide.length) await saveConf(userId, { ...conf, hide });
+  if (learned || hiddenNow || hide.length !== conf.hide.length) await saveConf(userId, { ...conf, hide });
   await pool.query("UPDATE integrations SET last_synced_at = ? WHERE user_id = ? AND provider = 'lms'", [now, userId]);
   return { added, updated, removed, skipped, unmapped: [...unmapped] };
 }
