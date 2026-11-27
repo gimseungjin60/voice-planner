@@ -19,10 +19,13 @@ async function todayClasses(userId) {
 }
 
 // AI 실패 시 쓰는 기본 문장 (저장하지 않아 다음에 다시 AI를 시도한다)
-function fallbackText(name, classes, dueTasks) {
+function fallbackText(name, classes, dueTasks, now = pool.kst()) {
+  const h = Number(now.slice(11, 13));
+  const hello = h < 12 ? "좋은 아침이에요" : h < 18 ? "좋은 오후예요" : "오늘 하루 수고했어요";
   const c = classes.length ? `오늘 수업은 ${classes.map((x) => `${x.name} ${x.start_time.slice(0, 5)}`).join(", ")}입니다.` : "오늘은 수업이 없어요.";
-  const d = dueTasks.length ? `다가오는 마감은 ${dueTasks.map((t) => t.title).join(", ")}입니다.` : "급한 마감은 없어요.";
-  return `${name}님, 좋은 아침이에요. ${c} ${d} 오늘도 힘내세요!`;
+  const upcoming = dueTasks.filter((t) => t.due_at >= now);
+  const d2 = upcoming.length ? `다가오는 마감은 ${upcoming.map((t) => t.title).join(", ")}입니다.` : "급한 마감은 없어요.";
+  return `${name}님, ${hello}. ${c} ${d2} 오늘도 힘내세요!`;
 }
 
 router.get("/today", async (req, res, next) => {
@@ -39,8 +42,9 @@ router.get("/today", async (req, res, next) => {
        ORDER BY due_at LIMIT 5`,
       [userId, threeDays],
     );
-    const content = await ai.makeBriefing({ userId, userName, today, classes, dueTasks });
-    if (!content) return res.json({ ok: true, data: { content: fallbackText(userName, classes, dueTasks), ai_ok: false } });
+    const now = pool.kst();
+    const content = await ai.makeBriefing({ userId, userName, today, now: now.slice(0, 16), classes, dueTasks });
+    if (!content) return res.json({ ok: true, data: { content: fallbackText(userName, classes, dueTasks, now), ai_ok: false } });
     // 동시에 두 번 요청돼도 하루 1개 (uq_user_date)
     await pool.query("INSERT IGNORE INTO briefings (user_id, brief_date, content) VALUES (?, ?, ?)", [userId, today, content]);
     res.json({ ok: true, data: { content, cached: false } });
