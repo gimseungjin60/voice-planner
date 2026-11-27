@@ -44,13 +44,18 @@
         <button type="button" class="icon-btn" id="cal-next" aria-label="다음 달"><svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></button>
         <button type="button" class="btn line sm" id="cal-today">오늘</button>
       </div>
+      <div class="cal-layers" id="cal-layers" role="group" aria-label="달력에 보일 것">
+        <button type="button" class="layer task" data-layer="task" aria-pressed="true"><i aria-hidden="true"></i>할 일</button>
+        <button type="button" class="layer class" data-layer="class" aria-pressed="true"><i aria-hidden="true"></i>수업</button>
+        <button type="button" class="layer event" data-layer="event" aria-pressed="true"><span class="src-logo gcal" aria-hidden="true"><svg><use href="#logo-gcal"/></svg></span>일정</button>
+      </div>
       <div class="cal-stats" id="cal-stats" aria-live="polite"></div>
     </div>
     <div class="cal-layout">
       <div class="cal-grid-wrap">
         <div class="cal-week" aria-hidden="true"><span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span></div>
         <div class="cal-grid" id="cal-grid" role="grid"></div>
-        <p class="cal-hint">할 일을 다른 날짜로 끌어다 놓으면 마감일이 바뀌어요. 날짜를 누르면 그날 할 일을 자세히 볼 수 있어요.</p>
+        <p class="cal-hint">할 일을 다른 날짜로 끌어다 놓으면 마감일이 바뀌어요. 수업은 시간표, 일정은 구글 캘린더에서 가져와 보여주기만 해요.</p>
       </div>
       <aside class="cal-side" id="cal-side" aria-live="polite"></aside>
     </div>
