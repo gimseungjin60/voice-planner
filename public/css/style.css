@@ -4327,6 +4327,18 @@ body.page-admin {
   .timeline > li > :last-child:not(:empty) {
     grid-column: 2;
   }
+  /* 마감 제목이 과목 칩과 한 줄이면 잘려서, 과목을 제목 아래로 내리고 제목은 두 줄까지 */
+  .timeline .tl-title:has(.chip) {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .timeline .tl-title .t {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    flex: 1 1 100%;
+    white-space: normal;
+  }
   /* 시간표: 칸이 너무 좁아지지 않게 표만 가로 스크롤 */
   .tt-wrap {
     overflow-x: auto;

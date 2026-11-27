@@ -48,11 +48,14 @@ router.post("/:id/accept", async (req, res, next) => {
     const subjectId = await ownSubjectId(userId, b.subject_id === undefined ? item.subject_id : b.subject_id);
 
     await conn.beginTransaction();
-    const [r] = await conn.query("INSERT INTO tasks (user_id, subject_id, title, due_at, priority, source) VALUES (?, ?, ?, ?, 'mid', 'gmail')", [
+    // 우선순위: 고른 값 > 마감이 있는 메일 과제는 '높음' (자동 추가된 중요 메일과 같게) > 그 외 '보통'
+    const priority = ["low", "mid", "high"].includes(b.priority) ? b.priority : dueAt ? "high" : "mid";
+    const [r] = await conn.query("INSERT INTO tasks (user_id, subject_id, title, due_at, priority, source) VALUES (?, ?, ?, ?, ?, 'gmail')", [
       userId,
       subjectId,
       title,
       dueAt,
+      priority,
     ]);
     await conn.query("UPDATE inbox_items SET status = 'accepted', task_id = ?, ai_title = ?, ai_due_at = ?, subject_id = ? WHERE item_id = ? AND user_id = ?", [
       r.insertId,

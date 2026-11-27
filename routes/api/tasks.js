@@ -89,6 +89,12 @@ router.get("/", async (req, res, next) => {
 });
 
 // 대시보드 총정리: 오늘·이번 주·지난 마감 개수 + 가장 가까운 D-day + AI 추천 Top3
+// '오늘 이것부터' AI 추천 캐시: 남은 할 일이 그대로면 10분 동안 같은 추천을 다시 쓴다 (대시보드 열 때마다 AI를 부르지 않게)
+// ponytail: 메모리라 서버 재시작 시 비워진다. 사용자가 많아지면 DB나 Redis로
+const topCache = new Map(); // user_id → { sig, at, top }
+const TOP_TTL = 10 * 60 * 1000;
+const topSig = (open, now) => open.map((t) => [t.task_id, t.title, t.due_at, t.priority, t.status, t.subject_id, t.due_at && t.due_at < now ? 1 : 0].join("|")).join("\n");
+
 router.get("/summary", async (req, res, next) => {
   try {
     const userId = req.session.user.user_id;
@@ -111,7 +117,16 @@ router.get("/summary", async (req, res, next) => {
     );
     const nearest = open.find((t) => t.due_at && t.due_at >= now) || null;
     // ?ai=0: 숫자 카드만 먼저 그리려고 AI 추천을 건너뛴다 (대시보드가 AI 응답을 기다리지 않게)
-    let top = req.query.ai === "0" ? null : await ai.prioritize({ userId, tasks: open, now });
+    let top = null;
+    if (req.query.ai !== "0") {
+      const sig = topSig(open, now);
+      const hit = topCache.get(userId);
+      if (hit && hit.sig === sig && Date.now() - hit.at < TOP_TTL) top = hit.top;
+      else {
+        top = await ai.prioritize({ userId, tasks: open, now });
+        if (top !== null) topCache.set(userId, { sig, at: Date.now(), top });
+      }
+    }
     const aiOk = top !== null;
     // AI 실패 시 마감 가까운 순으로 대체
     if (!aiOk)
