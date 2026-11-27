@@ -5,6 +5,10 @@
       <h1>할 일 <span class="count num" id="total-count"></span></h1>
       <p>말로 남긴 할 일과 직접 추가한 할 일을 한곳에서 관리해요.</p>
     </div>
+    <div class="seg" id="view-toggle" role="group" aria-label="보기 방식">
+      <button type="button" data-view="calendar"><svg class="i sm" aria-hidden="true"><use href="#i-calendar"/></svg>달력</button>
+      <button type="button" data-view="board"><svg class="i sm" aria-hidden="true"><use href="#i-grid"/></svg>보드</button>
+    </div>
   </div>
 
   <form class="composer" id="task-form">
@@ -32,6 +36,26 @@
     <% subjects.forEach((s) => { %><button type="button" data-subject="<%= s.subject_id %>" data-c style="--c: <%= s.color %>" aria-pressed="false"><%= s.name %></button><% }) %>
   </nav>
 
+  <section class="cal-view" id="cal-view" aria-label="월간 달력" hidden>
+    <div class="cal-head">
+      <div class="cal-nav">
+        <button type="button" class="icon-btn" id="cal-prev" aria-label="이전 달"><svg class="i" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+        <label class="cal-title"><span id="cal-title"></span><input type="month" id="cal-month" aria-label="달 고르기" /></label>
+        <button type="button" class="icon-btn" id="cal-next" aria-label="다음 달"><svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+        <button type="button" class="btn line sm" id="cal-today">오늘</button>
+      </div>
+      <div class="cal-stats" id="cal-stats" aria-live="polite"></div>
+    </div>
+    <div class="cal-layout">
+      <div class="cal-grid-wrap">
+        <div class="cal-week" aria-hidden="true"><span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span></div>
+        <div class="cal-grid" id="cal-grid" role="grid"></div>
+        <p class="cal-hint">할 일을 다른 날짜로 끌어다 놓으면 마감일이 바뀌어요. 날짜를 누르면 그날 할 일을 자세히 볼 수 있어요.</p>
+      </div>
+      <aside class="cal-side" id="cal-side" aria-live="polite"></aside>
+    </div>
+  </section>
+
   <div class="board">
     <section class="column" data-status="todo" aria-label="할 일"><div class="column-head"><span class="dot"></span><h3>할 일</h3><span class="count"></span></div><div class="cards"></div></section>
     <section class="column" data-status="doing" aria-label="진행 중"><div class="column-head"><span class="dot"></span><h3>진행 중</h3><span class="count"></span></div><div class="cards"></div></section>
@@ -40,4 +64,5 @@
 </main>
 <script id="tasks-data" type="application/json"><%- JSON.stringify(tasks).replace(/</g, '\\u003c') %></script>
 <script src="/js/tasks.js" defer></script>
+<script src="/js/tasks-calendar.js" defer></script>
 <%- include('partials/footer') %>
