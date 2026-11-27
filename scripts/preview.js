@@ -91,6 +91,7 @@ app.use((req, res, next) => {
   if (req.query.notion) state.notion = req.query.notion === "on";
   res.locals.user = state.loggedIn ? user : null;
   res.locals.path = req.path;
+  res.locals.when = require("../public/js/fmt").when;
   next();
 });
 

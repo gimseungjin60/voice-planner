@@ -42,7 +42,7 @@ function card(t) {
     </div>
     <div class="task-meta">
       ${t.subject_name ? chip(t.subject_name, t.subject_color, true) : ""}
-      ${done ? (t.completed_at ? `<span class="due done">완료 ${md(t.completed_at)}</span>` : "") : t.due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}
+      ${done ? (t.completed_at ? `<span class="due done">완료 ${when(t.completed_at)}</span>` : "") : t.due_at ? `<span class="due ${cls}">${esc(label)}</span>` : ""}
       ${t.priority === "high" && !done ? `<span class="prio-high"><svg class="i sm" aria-hidden="true"><use href="#i-flag"/></svg>중요</span>` : ""}
       ${src ? (link ? `<a class="src" ${linkAttrs(link)} title="${link.label}">` : `<span class="src" title="출처: ${src[1]}">`) + `<svg class="i" aria-hidden="true"><use href="#i-${src[0]}"/></svg><span class="src-label">${src[1]}</span>` + (link ? "</a>" : "</span>") : ""}
     </div>

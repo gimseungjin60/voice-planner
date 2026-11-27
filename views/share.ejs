@@ -4,8 +4,7 @@
      { key: "title", title: "수업·일정 제목", desc: "과목명·강의실과 일정 제목까지 보여요." },
      { key: "all", title: "마감까지 모두", desc: "제목에 더해 할 일 마감도 보여요." },
    ];
-   const q = (extra) => { const p = new URLSearchParams(); if (asFriend) p.set("view", "friend"); Object.entries(extra).forEach(([k, v]) => (v ? p.set(k, v) : p.delete(k))); const s = p.toString(); return s ? `?${s}` : "?"; };
-   const fmtSeen = (t) => t ? `${Number(t.slice(5, 7))}월 ${Number(t.slice(8, 10))}일 ${t.slice(11, 16)}` : null; %>
+   const q = (extra) => { const p = new URLSearchParams(); if (asFriend) p.set("view", "friend"); Object.entries(extra).forEach(([k, v]) => (v ? p.set(k, v) : p.delete(k))); const s = p.toString(); return s ? `?${s}` : "?"; }; %>
 <main class="container">
   <div class="page-head">
     <div>
@@ -32,7 +31,7 @@
         <div class="share-state">
           <span class="status-dot ok" aria-hidden="true"></span>
           <b>공유 중</b>
-          <span class="fine num"><%= share.view_count ? `친구가 ${share.view_count}번 열어 봤어요 · 마지막 ${fmtSeen(share.last_viewed_at)}` : "아직 아무도 열어 보지 않았어요" %></span>
+          <span class="fine num"><%= share.view_count ? `친구가 ${share.view_count}번 열어 봤어요 · 마지막 ${when(share.last_viewed_at)}` : "아직 아무도 열어 보지 않았어요" %></span>
         </div>
         <div class="share-link">
           <label class="sr-only" for="share-url">공유 링크</label>

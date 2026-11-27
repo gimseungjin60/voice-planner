@@ -21,7 +21,7 @@
     <div class="stat"><p class="label">남은 할 일</p><p class="value"><%= open.length %></p><p class="hint">전체 <%= subject.tasks.length %>개</p></div>
     <div class="stat"><p class="label">완료율</p><p class="value"><%= pct %>%</p>
       <div class="meter" role="img" aria-label="완료율 <%= pct %>%"><span style="width: <%= pct %>%"></span></div></div>
-    <div class="stat"><p class="label">음성 메모</p><p class="value"><%= subject.memos.length %></p><p class="hint"><%= subject.memos.length ? '최근 ' + md(subject.memos[0].created_at) : '아직 없어요' %></p></div>
+    <div class="stat"><p class="label">음성 메모</p><p class="value"><%= subject.memos.length %></p><p class="hint"><%= subject.memos.length ? '최근 ' + when(subject.memos[0].created_at) : '아직 없어요' %></p></div>
     <div class="stat"><p class="label">수업</p><p class="value"><%= subject.schedules.length %></p>
       <p class="hint num"><%= subject.schedules.map((x) => WEEK[x.day_of_week] + ' ' + x.start_time.slice(0, 5)).join(', ') || '수업 시간 없음' %></p></div>
   </div>
@@ -38,7 +38,7 @@
               <span class="check <%= done ? 'on' : '' %>" aria-hidden="true"></span>
               <div class="row-main"><div class="row-title <%= done ? 'struck' : '' %>"><%= t.title %></div></div>
               <% if (t.status === 'doing') { %><span class="badge blue">진행 중</span><% } %>
-              <% if (done) { %><span class="due num">완료 <%= md(t.completed_at || t.updated_at) %></span>
+              <% if (done) { %><span class="due num">완료 <%= when(t.completed_at || t.updated_at) %></span>
               <% } else if (t.due_at) { %><span class="due" data-due="<%= t.due_at %>"></span><% } %>
             </div>
           <% }) %>
@@ -58,7 +58,7 @@
                 <span class="tile"><svg class="i"><use href="#i-<%= m.memo_type === 'lecture' ? 'lecture' : 'mic' %>"/></svg></span>
                 <div class="row-main">
                   <div class="row-title"><%= (m.summary || m.transcript).split('\n')[0].replace(/^[•★]\s*/, '') %></div>
-                  <div class="row-sub num"><%= m.memo_type === 'lecture' ? '강의 녹음' : '짧은 메모' %> · <%= md(m.created_at) %> <%= m.created_at.slice(11, 16) %></div>
+                  <div class="row-sub num"><%= m.memo_type === 'lecture' ? '강의 녹음' : '짧은 메모' %> · <%= when(m.created_at) %></div>
                 </div>
                 <svg class="i chev" aria-hidden="true"><use href="#i-chevron"/></svg>
               </a>
@@ -78,7 +78,7 @@
                 <span class="tile blue"><svg class="i"><use href="#i-mail"/></svg></span>
                 <div class="row-main">
                   <div class="row-title"><%= m.ai_title || m.subject %></div>
-                  <div class="row-sub clamp-1 num"><%= m.subject %> · <%= md(m.received_at) %> <%= m.received_at.slice(11, 16) %></div>
+                  <div class="row-sub clamp-1 num"><%= m.subject %> · <%= when(m.received_at) %></div>
                 </div>
                 <span class="badge <%= MAIL[m.status][1] %>"><%= MAIL[m.status][0] %></span>
               </a>
