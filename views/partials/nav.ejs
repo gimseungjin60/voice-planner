@@ -1,8 +1,8 @@
 <%
-  // 주 메뉴는 매일 쓰는 5개만. 음성 메모는 오른쪽 마이크 버튼, 리포트·연동·관리자는 프로필 메뉴로
+  // 주 메뉴: 매일 쓰는 5개 + 연동(데스크톱만, 모바일 아래 탭은 5칸이라 대시보드 '연결된 서비스'와 프로필 메뉴로). 음성 메모는 오른쪽 마이크 버튼, 리포트·관리자는 프로필 메뉴로
   const links = [
     ["/", "대시보드", "i-home"], ["/tasks", "할 일", "i-checklist"], ["/timetable", "시간표", "i-calendar"],
-    ["/memos", "메모", "i-note"], ["/inbox", "받은 편지함", "i-mail"],
+    ["/memos", "메모", "i-note"], ["/inbox", "받은 편지함", "i-mail"], ["/settings", "연동", "i-link"],
   ];
   const more = [["/share", "일정 공유"], ["/report", "주간 리포트"], ["/settings", "연동 설정"]];
   if (user.role === "admin") more.push(["/admin", "관리자"]);
@@ -15,7 +15,7 @@
   <a class="brand" href="/"><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span><span class="brand-name">보이스 플래너</span></a>
   <nav class="gnav-links" aria-label="주 메뉴">
     <% links.forEach(([href, label, icon]) => { %>
-      <a href="<%= href %>" <%- isActive(href) ? 'aria-current="page"' : '' %>><svg class="i" aria-hidden="true"><use href="#<%= icon %>"/></svg><span class="lbl"><%= label %></span><% if (href === "/inbox") { %><span class="nav-badge" id="nav-inbox-badge"></span><% } %></a>
+      <a href="<%= href %>" <%- isActive(href) ? 'aria-current="page"' : '' %><%- href === "/settings" ? ' class="desk-only"' : '' %>><svg class="i" aria-hidden="true"><use href="#<%= icon %>"/></svg><span class="lbl"><%= label %></span><% if (href === "/inbox") { %><span class="nav-badge" id="nav-inbox-badge"></span><% } %></a>
     <% }) %>
   </nav>
   <div class="gnav-user">
